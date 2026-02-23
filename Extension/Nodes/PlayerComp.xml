@@ -16,14 +16,14 @@
   <file path="bin" name="WebServerWorm.exe">#WEB_CRACK#</file>
 
   <!-- GP V2 crack executables -->
-  <file path="bin" name="SSHcrack_v2.exe">#GP_SSH_V2#</file>
-  <file path="bin" name="FTPBounce_v2.exe">#GP_FTP_V2#</file>
-  <file path="bin" name="WebServerWorm_v2.exe">#GP_WEB_V2#</file>
+  <file path="bin" name="SSHcrack_v2.exe">#SSH_V2#</file>
+  <file path="bin" name="FTPBounce_v2.exe">#FTP_V2#</file>
+  <file path="bin" name="WebServerWorm_v2.exe">#WEB_V2#</file>
 
   <!-- GP V3 crack executables -->
-  <file path="bin" name="SSHcrack_v3.exe">#GP_SSH_V3#</file>
-  <file path="bin" name="FTPBounce_v3.exe">#GP_FTP_V3#</file>
-  <file path="bin" name="WebServerWorm_v3.exe">#GP_WEB_V3#</file>
+  <file path="bin" name="SSHcrack_v3.exe">#SSH_V3#</file>
+  <file path="bin" name="FTPBounce_v3.exe">#FTP_V3#</file>
+  <file path="bin" name="WebServerWorm_v3.exe">#WEB_V3#</file>
 
   <!-- M1 testing: V3 key files pre-seeded -->
   <file path="home" name="ssh_v3_key.dat">V3-KEY:SSH:ALPHA-0x4F2A</file>

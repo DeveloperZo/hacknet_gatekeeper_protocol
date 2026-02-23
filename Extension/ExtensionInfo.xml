@@ -5,7 +5,7 @@
   <Name>Gatekeeper Protocol</Name>
   <AllowSaves>true</AllowSaves>
 
-  <StartingVisibleNodes>playerComp,gp_test_node</StartingVisibleNodes>
+  <StartingVisibleNodes>playerComp,gp_crack_test,gp_test_node</StartingVisibleNodes>
   <StartingMission>Missions/RunStart.xml</StartingMission>
   <StartingActions>Actions/StartingActions.xml</StartingActions>
 

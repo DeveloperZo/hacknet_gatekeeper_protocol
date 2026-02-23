@@ -3,34 +3,27 @@
 
   <adminPass pass="testpass" />
 
-  <!-- Vanilla ports — cracked with SSHcrack, FTPBounce, WebServerWorm -->
   <ports>22, 21, 80</ports>
 
-  <!-- GP V2 ports — cracked with SSHcrack_v2, FTPBounce_v2, WebServerWorm_v2 -->
-  <!-- GP V3 ports — cracked with SSHcrack_v3, FTPBounce_v3, WebServerWorm_v3 -->
-  <PFPorts replace="false">
-    ssh_v2:10022:SSH_V2 ftp_v2:10021:FTP_V2 web_v2:10080:Web_V2
-    ssh_v3:20022:SSH_V3 ftp_v3:20021:FTP_V3 web_v3:20080:Web_V3
-  </PFPorts>
+  <PFPorts replace="false">ssh_v2:10022:SSH_V2 ftp_v2:10021:FTP_V2 web_v2:10080:Web_V2 ssh_v3:20022:SSH_V3 ftp_v3:20021:FTP_V3 web_v3:20080:Web_V3</PFPorts>
 
-  <!-- 3 vanilla + 3 v2 + 3 v3 = 9 ports total -->
   <portsForCrack val="9" />
 
   <proxy time="50" />
   <firewall solution="GATEKEEPER" additionalTime="10" />
   <trace time="120" />
 
-  <file path="home" name="README.txt">GP Test Node — M1
+  <file path="home" name="README.txt">GP Test Node - M1
 
 Crack sequence:
-  1. overload (proxy)
-  2. analyze / solve GATEKEEPER (firewall)
-  3. SSHcrack / FTPBounce / WebServerWorm (vanilla ports)
-  4. SSHcrack_v2 / FTPBounce_v2 / WebServerWorm_v2 (V2 ports)
-  5. SSHcrack_v3 / FTPBounce_v3 / WebServerWorm_v3 (V3 ports — needs key files)
+  1. overload                                          (proxy)
+  2. analyze / solve GATEKEEPER                        (firewall)
+  3. SSHcrack / FTPBounce / WebServerWorm              (vanilla)
+  4. SSHcrack_v2 / FTPBounce_v2 / WebServerWorm_v2    (V2 ports)
+  5. SSHcrack_v3 / FTPBounce_v3 / WebServerWorm_v3    (V3 ports - needs key files)
   6. porthack
 
-V3 key files are in your /home from session start for M1 testing.</file>
+V3 key files are pre-loaded in your /home for M1 testing.</file>
 
   <file path="home" name="payload.dat">CORP-EXFIL-ALPHA-7744-CLASSIFIED</file>
 

@@ -4,18 +4,24 @@
 //
 // M1 scope:
 //   - Register 6 custom PFPorts (ssh_v2/ftp_v2/web_v2, ssh_v3/ftp_v3/web_v3)
-//   - GPCrackBaseV2 + 3 concrete crackers (10s base, CPU mult)
-//   - GPCrackBaseV3 + 3 concrete crackers (key file gate, 10s base, CPU mult)
+//   - GPCrackBase (unified) + 6 concrete crackers, tier-based timing + color
 //   - gp_debug command
+//
+// Crack tiers — base solve time (divided by CPU multiplier):
+//   V2 (tier 2): 10s | orange bar | no key file
+//   V3 (tier 3): 15s | cyan bar   | requires <port>_v3_key.dat in /home
+//
+// Adding a new tier: add a concrete class inheriting GPCrackBase,
+//   pass the next tier number, adjust BASE_SOLVE_TIME array.
 //
 // Port naming: Pathfinder uses "web" for HTTP (not "http").
 // V3 key files: ssh_v3_key.dat, ftp_v3_key.dat, web_v3_key.dat (in player /home)
 //
 // Hardware flags (read-only in M1, upgraded in M3):
-//   CPU — gp_cpu_t2/t3/t4 : crack speed multiplier (1.0x / 1.5x / 2.25x / 3.0x)
-//   RAM — gp_ram_t2/t3/t4 : process slot capacity
-//   HDD — gp_hdd_t2/t3/t4 : inventory size (limits large script storage)
-//   NIC — gp_nic_t2/t3/t4 : trace time modifier + upload/download speed
+//   CPU — cpu_t2/t3/t4 : crack speed multiplier (1.0x / 1.5x / 2.25x / 3.0x)
+//   RAM — ram_t2/t3/t4 : process slot capacity
+//   HDD — hdd_t2/t3/t4 : inventory size
+//   NIC — nic_t2/t3/t4 : trace time modifier + upload/download speed
 // =============================================================================
 
 using BepInEx;
@@ -38,34 +44,24 @@ namespace GatekeeperProtocol
         {
             Instance = this;
 
-            // --- Port registrations ---
-            // V2 tier: GP crack exe required, 10s base crack time
             PortManager.RegisterPort("ssh_v2", "SSH V2", 10022);
             PortManager.RegisterPort("ftp_v2", "FTP V2", 10021);
             PortManager.RegisterPort("web_v2", "Web V2", 10080);
-
-            // V3 tier: key file required, 10s base crack time
             PortManager.RegisterPort("ssh_v3", "SSH V3", 20022);
             PortManager.RegisterPort("ftp_v3", "FTP V3", 20021);
             PortManager.RegisterPort("web_v3", "Web V3", 20080);
 
             Log.LogInfo("[GP] Registered 6 custom ports: ssh_v2/ftp_v2/web_v2, ssh_v3/ftp_v3/web_v3");
 
-            // --- Executables ---
-            // Must use ExecutableManager.RegisterExecutable explicitly in v5.x.
-            // The [Pathfinder.Meta.Load.Executable] attribute is not scanned — omit it.
-            // The xmlName matches FileContents="..." in StartingActions.xml.
-            // Pathfinder's TextReplaceEvent swaps the XML token for binary exe data at load time.
-            ExecutableManager.RegisterExecutable<GPSSHCrackV2>("#GP_SSH_V2#");
-            ExecutableManager.RegisterExecutable<GPFTPCrackV2>("#GP_FTP_V2#");
-            ExecutableManager.RegisterExecutable<GPWebCrackV2>("#GP_WEB_V2#");
-            ExecutableManager.RegisterExecutable<GPSSHCrackV3>("#GP_SSH_V3#");
-            ExecutableManager.RegisterExecutable<GPFTPCrackV3>("#GP_FTP_V3#");
-            ExecutableManager.RegisterExecutable<GPWebCrackV3>("#GP_WEB_V3#");
+            ExecutableManager.RegisterExecutable<GPSSHCrackV2>("#SSH_V2#");
+            ExecutableManager.RegisterExecutable<GPFTPCrackV2>("#FTP_V2#");
+            ExecutableManager.RegisterExecutable<GPWebCrackV2>("#WEB_V2#");
+            ExecutableManager.RegisterExecutable<GPSSHCrackV3>("#SSH_V3#");
+            ExecutableManager.RegisterExecutable<GPFTPCrackV3>("#FTP_V3#");
+            ExecutableManager.RegisterExecutable<GPWebCrackV3>("#WEB_V3#");
 
-            Log.LogInfo("[GP] Registered 6 executables: GP_SSH/FTP/WEB_V2, GP_SSH/FTP/WEB_V3");
+            Log.LogInfo("[GP] Registered 6 executables: SSH/FTP/WEB_V2, SSH/FTP/WEB_V3");
 
-            // --- Commands ---
             CommandManager.RegisterCommand("gp_debug", GpDebugCommand, addAutocomplete: false);
 
             Log.LogInfo("[GP] M1 plugin loaded. Commands: gp_debug");
@@ -78,181 +74,167 @@ namespace GatekeeperProtocol
             return true;
         }
 
-        // =====================================================================
-        // gp_debug — diagnostic printout
-        // =====================================================================
         private static void GpDebugCommand(OS os, string[] args)
         {
             os.write("");
-            os.write("  [GP] ===== GATEKEEPER PROTOCOL DEBUG =====");
+            os.write("[GP] ===== GATEKEEPER PROTOCOL DEBUG =====");
+            os.write("");
+            os.write("CPU  : T" + HardwareState.CpuTier(os) + " (" + HardwareState.CpuMultiplier(os).ToString("F2") + "x)");
+            os.write("RAM  : T" + HardwareState.RamTier(os) + " [" + os.totalRam + " MB]");
+            os.write("HDD  : T" + HardwareState.HddTier(os) + " [M3]");
+            os.write("NIC  : T" + HardwareState.NicTier(os) + " [M3]");
+            os.write("CRED : [M3]");
             os.write("");
 
-            // CPU tier
-            int cpuTier = HardwareState.CpuTier(os);
-            float cpuMult = HardwareState.CpuMultiplier(os);
-            os.write("  CPU  : T" + cpuTier + " (" + cpuMult.ToString("F2") + "x)");
-
-            // RAM tier
-            int ramTier = HardwareState.RamTier(os);
-            os.write("  RAM  : T" + ramTier + " [" + os.totalRam + " MB]");
-
-            // HDD tier
-            int hddTier = HardwareState.HddTier(os);
-            os.write("  HDD  : T" + hddTier + " [M3]");
-
-            // NIC tier
-            int nicTier = HardwareState.NicTier(os);
-            os.write("  NIC  : T" + nicTier + " [M3]");
-
-            // Credits
-            os.write("  CRED : [M3]");
-
-            // Live trace state
-            os.write("");
             try
             {
                 var tt = os.traceTracker;
                 if (tt.active)
-                {
-                    float remaining = tt.startingTimer - tt.timer;
-                    os.write("  TRACE: ACTIVE - " + remaining.ToString("F1") + "s remaining");
-                }
+                    os.write("TRACE: ACTIVE - " + (tt.startingTimer - tt.timer).ToString("F1") + "s remaining");
                 else
-                {
-                    os.write("  TRACE: inactive");
-                }
+                    os.write("TRACE: inactive");
             }
-            catch (Exception)
-            {
-                os.write("  TRACE: [field names unverified]");
-            }
+            catch { os.write("TRACE: [unavailable]"); }
 
-            // Connected node info
             if (os.connectedComp != null)
             {
                 os.write("");
-                os.write("  Node : " + os.connectedComp.name + " (" + os.connectedComp.ip + ")");
-                os.write("  Trace: " + os.connectedComp.traceTime + "s max");
-
+                os.write("Node : " + os.connectedComp.name + " (" + os.connectedComp.ip + ")");
+                os.write("Trace: " + os.connectedComp.traceTime + "s max");
                 bool hasGpPorts = false;
                 foreach (var port in os.connectedComp.GetAllPortStates())
                 {
                     if (port.Record.Protocol.EndsWith("_v2") || port.Record.Protocol.EndsWith("_v3"))
                     {
-                        if (!hasGpPorts) { os.write("  Ports:"); hasGpPorts = true; }
-                        string state = port.Cracked ? "OPEN" : "CLOSED";
-                        os.write("    " + port.Record.Protocol.PadRight(10) + " [" + state + "]");
+                        if (!hasGpPorts) { os.write("Ports:"); hasGpPorts = true; }
+                        os.write("  " + port.Record.Protocol.PadRight(10) + " [" + (port.Cracked ? "OPEN" : "CLOSED") + "]");
                     }
                 }
-                if (!hasGpPorts) os.write("  Ports: none on this node");
+                if (!hasGpPorts) os.write("Ports: none on this node");
             }
             else
             {
-                os.write("  Node : [not connected]");
+                os.write("Node : [not connected]");
             }
 
             os.write("");
-            os.write("  [GP] ==========================================");
+            os.write("[GP] ==========================================");
             os.write("");
         }
     }
 
     // =========================================================================
     // HARDWARE STATE
-    //
-    // CPU  — crack speed multiplier, applied to all GP crack executables
-    // RAM  — process slot capacity (M3: gating which exes can run simultaneously)
-    // HDD  — inventory size (M3: larger scripts need more HDD space)
-    // NIC  — trace time modifier + transfer speed (M3: NIC T2+ needed for v3 nodes)
-    //
-    // All tiers use additive flag pattern: gp_<hw>_t2 means "at least T2".
-    // Flags cannot be removed — tier is always the highest flag present.
     // =========================================================================
     public static class HardwareState
     {
         public static int CpuTier(OS os)
         {
-            if (os.Flags.HasFlag("gp_cpu_t4")) return 4;
-            if (os.Flags.HasFlag("gp_cpu_t3")) return 3;
-            if (os.Flags.HasFlag("gp_cpu_t2")) return 2;
+            if (os.Flags.HasFlag("cpu_t4")) return 4;
+            if (os.Flags.HasFlag("cpu_t3")) return 3;
+            if (os.Flags.HasFlag("cpu_t2")) return 2;
             return 1;
         }
-
         public static float CpuMultiplier(OS os)
         {
-            if (os.Flags.HasFlag("gp_cpu_t4")) return 3.0f;
-            if (os.Flags.HasFlag("gp_cpu_t3")) return 2.25f;
-            if (os.Flags.HasFlag("gp_cpu_t2")) return 1.5f;
+            if (os.Flags.HasFlag("cpu_t4")) return 3.0f;
+            if (os.Flags.HasFlag("cpu_t3")) return 2.25f;
+            if (os.Flags.HasFlag("cpu_t2")) return 1.5f;
             return 1.0f;
         }
-
         public static int RamTier(OS os)
         {
-            if (os.Flags.HasFlag("gp_ram_t4")) return 4;
-            if (os.Flags.HasFlag("gp_ram_t3")) return 3;
-            if (os.Flags.HasFlag("gp_ram_t2")) return 2;
+            if (os.Flags.HasFlag("ram_t4")) return 4;
+            if (os.Flags.HasFlag("ram_t3")) return 3;
+            if (os.Flags.HasFlag("ram_t2")) return 2;
             return 1;
         }
-
         public static int HddTier(OS os)
         {
-            if (os.Flags.HasFlag("gp_hdd_t4")) return 4;
-            if (os.Flags.HasFlag("gp_hdd_t3")) return 3;
-            if (os.Flags.HasFlag("gp_hdd_t2")) return 2;
+            if (os.Flags.HasFlag("hdd_t4")) return 4;
+            if (os.Flags.HasFlag("hdd_t3")) return 3;
+            if (os.Flags.HasFlag("hdd_t2")) return 2;
             return 1;
         }
-
         public static int NicTier(OS os)
         {
-            if (os.Flags.HasFlag("gp_nic_t4")) return 4;
-            if (os.Flags.HasFlag("gp_nic_t3")) return 3;
-            if (os.Flags.HasFlag("gp_nic_t2")) return 2;
+            if (os.Flags.HasFlag("nic_t4")) return 4;
+            if (os.Flags.HasFlag("nic_t3")) return 3;
+            if (os.Flags.HasFlag("nic_t2")) return 2;
             return 1;
         }
     }
 
     // =========================================================================
-    // GP V2 CRACK BASE
+    // GP CRACK BASE — unified single-inheritance crack executable
     //
-    // Running this exe means the player has V2-capable cracking software.
-    // Base solve time: 10s. CPU multiplier applied (higher CPU = faster solve).
-    // No key file required. No tier gate.
+    // To add a new tier: create a concrete class, pass the next tier number.
+    // BASE_SOLVE_TIME and TIER_* arrays auto-index on tier.
     //
-    // At CPU T1 (1.0x): 10s
-    // At CPU T2 (1.5x): 6.7s
-    // At CPU T3 (2.25x): 4.4s
+    // Tier 2 (V2): 10s | orange | no key file
+    // Tier 3 (V3): 15s | cyan   | requires <port>_v3_key.dat in player /home
     // =========================================================================
-    public abstract class GPCrackBaseV2 : BaseExecutable
+    public abstract class GPCrackBase : BaseExecutable
     {
-        protected string portName;      // e.g. "ssh_v2"
-        protected int    portNumber;    // e.g. 10022 — passed to Computer.openPort(int, string)
-        protected float  elapsed;
-        protected bool   initialized;
+        // Base solve time in seconds per tier (index = tier number).
+        private static readonly float[] BASE_SOLVE_TIME = { 0f, 0f, 10.0f, 15.0f };
 
-        private const float BASE_SOLVE_TIME = 10.0f;
+        // Progress bar fill color per tier.
+        private static readonly Color[] TIER_BAR = {
+            Color.White, Color.White,
+            new Color(200, 120,   0),   // V2 orange
+            new Color(  0, 180, 220),   // V3 cyan
+        };
 
-        protected GPCrackBaseV2(Rectangle location, OS os, string[] args, string port, int portNum)
+        // Label text color per tier.
+        private static readonly Color[] TIER_LABEL = {
+            Color.White, Color.White,
+            new Color(255, 180,  80),   // V2 amber
+            new Color( 80, 200, 255),   // V3 sky
+        };
+
+        protected readonly string portName;
+        protected readonly int    portNumber;
+        protected readonly int    tier;
+        protected readonly string keyFileName; // null = no gate
+        protected float elapsed;
+        protected bool  initialized;
+
+        protected GPCrackBase(Rectangle location, OS os, string[] args,
+                              string port, int portNum, int tier, string keyFile = null)
             : base(location, os, args)
         {
-            portName   = port;
-            portNumber = portNum;
-            ramCost    = 80;
-            IdentifierName = port.Replace("ssh_v2", "SSHcrack_v2")
-                                  .Replace("ftp_v2", "FTPBounce_v2")
-                                  .Replace("web_v2", "WebServerWorm_v2");
+            portName    = port;
+            portNumber  = portNum;
+            this.tier   = tier;
+            keyFileName = keyFile;
+            ramCost     = tier >= 3 ? 120 : 80;
+
+            IdentifierName = port
+                .Replace("ssh_v2", "SSHcrack_v2")
+                .Replace("ftp_v2", "FTPBounce_v2")
+                .Replace("web_v2", "WebServerWorm_v2")
+                .Replace("ssh_v3", "SSHcrack_v3")
+                .Replace("ftp_v3", "FTPBounce_v3")
+                .Replace("web_v3", "WebServerWorm_v3");
+
+            if (os.connectedComp != null)
+                targetIP = os.connectedComp.ip;
         }
 
         public override void Update(float t)
         {
-            base.Update(t);
+            // base.Update(t) calls ExeModule.Update which throws for BaseExecutable —
+            // skip it so our timer always runs.
 
             if (!initialized)
             {
                 initialized = true;
+
                 var target = Programs.getComputer(os, targetIP);
                 if (target == null)
                 {
-                    os.write("[GP] ERROR: Target not found.");
+                    os.write("[GP] ERROR: No target. Connect to a node first.");
                     needsRemoval = true;
                     return;
                 }
@@ -262,6 +244,20 @@ namespace GatekeeperProtocol
                     os.write("[GP] " + portName + " already open.");
                     needsRemoval = true;
                     return;
+                }
+
+                if (keyFileName != null)
+                {
+                    var home    = os.thisComputer.files.root.searchForFolder("home");
+                    bool hasKey = home != null && home.searchForFile(keyFileName) != null;
+                    if (!hasKey)
+                    {
+                        os.write("[GP] V3 HANDSHAKE FAILED.");
+                        os.write("[GP] Key file required: " + keyFileName);
+                        os.write("[GP] Obtain the key from a relay node and scp it to /home.");
+                        needsRemoval = true;
+                        return;
+                    }
                 }
 
                 try
@@ -275,202 +271,95 @@ namespace GatekeeperProtocol
                 }
             }
 
+            float solveTime = BASE_SOLVE_TIME[Math.Min(tier, BASE_SOLVE_TIME.Length - 1)];
             elapsed += t * HardwareState.CpuMultiplier(os);
 
-            if (elapsed >= BASE_SOLVE_TIME)
+            // First-tick confirmation — appears once in LogOutput.log when timer starts.
+            if (elapsed <= t * 2)
+                GatekeeperPlugin.Instance?.Log.LogInfo(
+                    "[GP] TIMER STARTED: " + portName + " solveTime=" + solveTime + "s target=" + targetIP);
+
+            if (elapsed >= solveTime)
             {
-                var target = Programs.getComputer(os, targetIP);
-                if (target != null)
-                    target.openPort(portNumber, os.thisComputer.ip);
-                os.write("[GP] " + portName + " breached.");
-                needsRemoval = true;
-            }
-        }
-
-        public override void Draw(float t)
-        {
-            base.Draw(t);
-            drawTarget();
-            drawOutline();
-
-            if (!initialized) return;
-
-            float pct  = Math.Min(elapsed / BASE_SOLVE_TIME, 1.0f);
-            int barX   = Bounds.X + 10;
-            int barY   = Bounds.Y + 30;
-            int barW   = Bounds.Width - 20;
-            int barH   = 16;
-
-            Hacknet.Gui.RenderedRectangle.doRectangle(barX, barY, barW, barH, new Color(20, 20, 20));
-            Hacknet.Gui.RenderedRectangle.doRectangle(barX, barY, (int)(barW * pct), barH, new Color(200, 120, 0));
-
-            Hacknet.Gui.TextItem.doLabel(new Vector2(barX, barY - 20),
-                portName.ToUpper() + " - " + (int)(pct * 100) + "%", new Color(255, 180, 80));
-            Hacknet.Gui.TextItem.doLabel(new Vector2(barX, barY + barH + 4),
-                "V2 BREACH", new Color(120, 120, 120));
-        }
-    }
-
-    // =========================================================================
-    // GP V3 CRACK BASE
-    //
-    // Key gate: requires <portBase>_v3_key.dat in player /home.
-    //   portBase = "ssh" for "ssh_v3", "ftp" for "ftp_v3", etc.
-    //
-    // Base solve time: 10s. CPU multiplier applied.
-    // V3 ports will appear on nodes with shorter trace times in M2+ — the
-    // challenge comes from node difficulty, not this executable's gate.
-    // =========================================================================
-    public abstract class GPCrackBaseV3 : BaseExecutable
-    {
-        protected string portName;      // e.g. "ssh_v3"
-        protected int    portNumber;    // e.g. 20022
-        protected string portBase;      // e.g. "ssh"
-        protected float  elapsed;
-        protected bool   initialized;
-        protected bool   failed;
-
-        private const float BASE_SOLVE_TIME = 10.0f;
-
-        protected GPCrackBaseV3(Rectangle location, OS os, string[] args, string port, int portNum, string pBase)
-            : base(location, os, args)
-        {
-            portName   = port;
-            portNumber = portNum;
-            portBase   = pBase;
-            ramCost    = 120;
-            IdentifierName = port.Replace("ssh_v3", "SSHcrack_v3")
-                                  .Replace("ftp_v3", "FTPBounce_v3")
-                                  .Replace("web_v3", "WebServerWorm_v3");
-        }
-
-        public override void Update(float t)
-        {
-            base.Update(t);
-
-            if (!initialized)
-            {
-                initialized = true;
-                var target = Programs.getComputer(os, targetIP);
-                if (target == null)
-                {
-                    os.write("[GP] ERROR: Target not found.");
-                    needsRemoval = true;
-                    return;
-                }
-
-                if (target.isPortOpen(portName))
-                {
-                    os.write("[GP] " + portName + " already open.");
-                    needsRemoval = true;
-                    return;
-                }
-
-                // KEY FILE GATE — requires <portBase>_v3_key.dat in /home
-                string keyFileName = portBase + "_v3_key.dat";
-                var home = os.thisComputer.files.root.searchForFolder("home");
-                bool hasKey = home != null && home.searchForFile(keyFileName) != null;
-
-                if (!hasKey)
-                {
-                    os.write("[GP] V3 HANDSHAKE FAILED.");
-                    os.write("[GP] Key file required: " + keyFileName);
-                    os.write("[GP] scp the key from a relay node to your /home.");
-                    failed = true;
-                    needsRemoval = true;
-                    return;
-                }
-
+                GatekeeperPlugin.Instance?.Log.LogInfo(
+                    "[GP] TIMER DONE: " + portName + " elapsed=" + elapsed.ToString("F1") + "s");
+                // openPort may throw on nodes that don't own this PF port —
+                // wrap so needsRemoval is always reached and the exe exits cleanly.
                 try
                 {
-                    if (!os.traceTracker.active)
-                        target.hostileActionTaken();
+                    var target = Programs.getComputer(os, targetIP);
+                    if (target != null)
+                        target.openPort(portNumber, os.thisComputer.ip);
                 }
                 catch (Exception ex)
                 {
-                    GatekeeperPlugin.Instance?.Log.LogWarning("[GP] hostileActionTaken: " + ex.Message);
+                    GatekeeperPlugin.Instance?.Log.LogWarning(
+                        "[GP] openPort(" + portNumber + ") failed: " + ex.Message);
                 }
-            }
-
-            if (failed) return;
-
-            elapsed += t * HardwareState.CpuMultiplier(os);
-
-            if (elapsed >= BASE_SOLVE_TIME)
-            {
-                var target = Programs.getComputer(os, targetIP);
-                if (target != null)
-                    target.openPort(portNumber, os.thisComputer.ip);
-                os.write("[GP] " + portName + " handshake complete.");
+                os.write("[GP] " + portName + (tier >= 3 ? " handshake complete." : " breached."));
                 needsRemoval = true;
             }
         }
 
         public override void Draw(float t)
         {
+            // base.Draw(t) renders the module background + IdentifierName — same as vanilla crackers.
+            // base.Update(t) is NOT called (it throws for BaseExecutable); Draw is safe.
             base.Draw(t);
             drawTarget();
             drawOutline();
 
-            if (!initialized || failed) return;
+            int   ti        = Math.Min(tier, TIER_BAR.Length - 1);
+            float solveTime = BASE_SOLVE_TIME[Math.Min(tier, BASE_SOLVE_TIME.Length - 1)];
+            float pct       = initialized ? Math.Min(elapsed / solveTime, 1.0f) : 0f;
 
-            float pct  = Math.Min(elapsed / BASE_SOLVE_TIME, 1.0f);
-            int barX   = Bounds.X + 10;
-            int barY   = Bounds.Y + 30;
-            int barW   = Bounds.Width - 20;
-            int barH   = 16;
+            // Bottom-anchored bar — adapts to actual module height regardless of value.
+            int barH = 8;
+            int barX = Bounds.X + 2;
+            int barW = Bounds.Width - 4;
+            int barY = Bounds.Y + Bounds.Height - barH - 2;
 
             Hacknet.Gui.RenderedRectangle.doRectangle(barX, barY, barW, barH, new Color(20, 20, 20));
-            Hacknet.Gui.RenderedRectangle.doRectangle(barX, barY, (int)(barW * pct), barH, new Color(0, 180, 220));
-
-            Hacknet.Gui.TextItem.doLabel(new Vector2(barX, barY - 20),
-                portName.ToUpper() + " - " + (int)(pct * 100) + "%", new Color(80, 200, 255));
-            Hacknet.Gui.TextItem.doLabel(new Vector2(barX, barY + barH + 4),
-                "V3 BREACH", new Color(100, 120, 140));
+            Hacknet.Gui.RenderedRectangle.doRectangle(barX, barY, (int)(barW * pct), barH, TIER_BAR[ti]);
         }
     }
 
     // =========================================================================
-    // CONCRETE V2 CRACKERS
+    // CONCRETE CRACKERS — V2 (tier 2, orange, 10s) and V3 (tier 3, cyan, 15s)
     // =========================================================================
-
-    public class GPSSHCrackV2 : GPCrackBaseV2
+    public class GPSSHCrackV2 : GPCrackBase
     {
-        public GPSSHCrackV2(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "ssh_v2", 10022) { }
+        public GPSSHCrackV2(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "ssh_v2", 10022, 2) { }
     }
 
-    public class GPFTPCrackV2 : GPCrackBaseV2
+    public class GPFTPCrackV2 : GPCrackBase
     {
-        public GPFTPCrackV2(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "ftp_v2", 10021) { }
+        public GPFTPCrackV2(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "ftp_v2", 10021, 2) { }
     }
 
-    public class GPWebCrackV2 : GPCrackBaseV2
+    public class GPWebCrackV2 : GPCrackBase
     {
-        public GPWebCrackV2(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "web_v2", 10080) { }
+        public GPWebCrackV2(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "web_v2", 10080, 2) { }
     }
 
-    // =========================================================================
-    // CONCRETE V3 CRACKERS
-    // =========================================================================
-
-    public class GPSSHCrackV3 : GPCrackBaseV3
+    public class GPSSHCrackV3 : GPCrackBase
     {
-        public GPSSHCrackV3(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "ssh_v3", 20022, "ssh") { }
+        public GPSSHCrackV3(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "ssh_v3", 20022, 3, "ssh_v3_key.dat") { }
     }
 
-    public class GPFTPCrackV3 : GPCrackBaseV3
+    public class GPFTPCrackV3 : GPCrackBase
     {
-        public GPFTPCrackV3(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "ftp_v3", 20021, "ftp") { }
+        public GPFTPCrackV3(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "ftp_v3", 20021, 3, "ftp_v3_key.dat") { }
     }
 
-    public class GPWebCrackV3 : GPCrackBaseV3
+    public class GPWebCrackV3 : GPCrackBase
     {
-        public GPWebCrackV3(Rectangle location, OS os, string[] args)
-            : base(location, os, args, "web_v3", 20080, "web") { }
+        public GPWebCrackV3(Rectangle l, OS os, string[] args)
+            : base(l, os, args, "web_v3", 20080, 3, "web_v3_key.dat") { }
     }
 }

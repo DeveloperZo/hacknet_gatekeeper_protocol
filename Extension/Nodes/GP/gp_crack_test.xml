@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  gp_crack_test — Isolated cracker test node
+  No proxy. No firewall. Ports all CLOSED.
+  Test order:
+    1. SSHcrack       → port 22 opens  (vanilla)
+    2. SSHcrack_v2    → ssh_v2 opens   (GP V2)
+  Once both work here, promote to gp_test_node with proxy + firewall.
+-->
+<Computer id="gp_crack_test"
+          name="GP Crack Test"
+          ip="10.0.0.20"
+          security="1"
+          allowsDefaultBootModule="false"
+          type="1">
+
+  <adminPass pass="admin" />
+
+  <!-- Vanilla port — SSHcrack target -->
+  <ports>22</ports>
+
+  <!-- V2 custom port — SSHcrack_v2 target -->
+  <PFPorts>ssh_v2:10022</PFPorts>
+
+  <!-- Only 1 port needed for porthack so testing is fast -->
+  <portsForCrack val="1" />
+
+  <!-- Long trace — won't interrupt testing -->
+  <trace time="9999" />
+
+  <file path="home" name="README.txt">Crack test node.
+Step 1: SSHcrack      — should open port 22 in ~10s
+Step 2: SSHcrack_v2   — should open ssh_v2 in ~10s
+</file>
+
+</Computer>
