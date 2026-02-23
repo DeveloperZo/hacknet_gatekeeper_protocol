@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Computer id="playerComp" name="#PLAYERNAME# Workstation" security="3" allowsDefaultBootModule="false" type="1">
+
+  <adminPass pass="password" />
+  <account username="#PLAYERNAME#" password="macrosoftrulez" type="ADMIN" />
+
+  <ports>21, 22, 25, 80</ports>
+
+  <proxy time="-1" />
+  <portsForCrack val="101" />
+  <trace time="300" />
+
+  <!-- Vanilla crack executables -->
+  <file path="bin" name="SSHcrack.exe">#SSH_CRACK#</file>
+  <file path="bin" name="FTPBounce.exe">#FTP_CRACK#</file>
+  <file path="bin" name="WebServerWorm.exe">#WEB_CRACK#</file>
+
+  <!-- GP V2 crack executables -->
+  <file path="bin" name="SSHcrack_v2.exe">#GP_SSH_V2#</file>
+  <file path="bin" name="FTPBounce_v2.exe">#GP_FTP_V2#</file>
+  <file path="bin" name="WebServerWorm_v2.exe">#GP_WEB_V2#</file>
+
+  <!-- GP V3 crack executables -->
+  <file path="bin" name="SSHcrack_v3.exe">#GP_SSH_V3#</file>
+  <file path="bin" name="FTPBounce_v3.exe">#GP_FTP_V3#</file>
+  <file path="bin" name="WebServerWorm_v3.exe">#GP_WEB_V3#</file>
+
+  <!-- M1 testing: V3 key files pre-seeded -->
+  <file path="home" name="ssh_v3_key.dat">V3-KEY:SSH:ALPHA-0x4F2A</file>
+  <file path="home" name="ftp_v3_key.dat">V3-KEY:FTP:ALPHA-0x7B1C</file>
+  <file path="home" name="web_v3_key.dat">V3-KEY:WEB:ALPHA-0x9E33</file>
+
+</Computer>

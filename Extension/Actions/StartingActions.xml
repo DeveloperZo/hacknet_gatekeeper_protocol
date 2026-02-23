@@ -1,0 +1,9 @@
+<ConditionalActions>
+
+  <Instantly>
+    <!-- Executables and key files are defined directly on PlayerComp.xml
+         so Pathfinder's token substitution fires at Computer load time.
+         AddAsset writes literal token strings, not executable binary data. -->
+  </Instantly>
+
+</ConditionalActions>

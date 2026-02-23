@@ -1,0 +1,97 @@
+﻿---
+description: XML conventions for Hacknet extension files — nodes, missions, actions
+globs: Extension/**/*.xml
+alwaysApply: false
+---
+
+# GP Extension — XML Conventions
+
+## Custom Port Declaration (PFPorts)
+
+```xml
+<!-- In Computer XML — declare custom ports alongside standard ones -->
+<ports>22, 21, 80</ports>
+<PFPorts>ssh_v2:10022, ftp_v2:10021, web_v2:10080</PFPorts>
+```
+
+Port number must match `PortManager.RegisterPort()` in the plugin exactly.
+
+## Executable Token Strings
+
+These are the exact tokens for GP executables in `AddAsset` and node XML `<file>` tags:
+
+```
+#GP_SSH_V2#    #GP_FTP_V2#    #GP_WEB_V2#
+#GP_SSH_V3#      #GP_FTP_V3#      #GP_WEB_V3#
+```
+
+Must match the string in `[Pathfinder.Meta.Load.Executable("...")]` exactly.
+
+## Node XML Template (GP nodes)
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<Computer id="gp_node_id"
+          name="Display Name"
+          ip="10.0.X.X"
+          security="3"
+          allowsDefaultBootModule="false"
+          type="1">
+
+  <adminPass pass="admin" />
+  <ports>22, 21, 80</ports>
+  <PFPorts>ssh_v2:10022</PFPorts>
+  <portsForCrack val="3" />
+  <trace time="30" />
+  <admin type="progress" resetPassword="false" isSuper="false" />
+
+</Computer>
+```
+
+## Trace Time Guidelines by Node Tier
+
+| Tier | traceTime | T1 crack window |
+|------|-----------|----------------|
+| Entry | 30s | ~29s (barely) |
+| Mid | 60s | ~59s (marginal) |
+| High | 120s | comfortable for all |
+| Gatekeeper | 180s | T3 only viable |
+
+## Admin Types
+
+```xml
+<admin type="progress" />   <!-- resets port progress on disconnect — use for GP nodes -->
+<admin type="fast" />       <!-- instant reset — use for Gatekeeper nodes -->
+<admin type="none" />       <!-- no reset — use for one-time breach targets -->
+```
+
+## StartingActions — Give GP Executables
+
+```xml
+<ConditionalActions>
+  <Instantly>
+    <AddAsset FileName="GPV2SSH.exe" FileContents="#GP_SSH_V2#"
+              TargetComp="playerComp" TargetFolderpath="bin" />
+    <!-- repeat for all 6 GP executables -->
+  </Instantly>
+</ConditionalActions>
+```
+
+## Gatekeeper Hacker Script Launch (M2+)
+
+```xml
+<LaunchHackScript
+  Filepath="HackerScripts/GatekeeperRetaliation_T1.txt"
+  SourceComp="gk_node_id"
+  TargetComp="playerComp"
+  RequireLogsOnSource="false"
+  RequireSourceIntact="true" />
+```
+
+## Flag Checks (ZeroDayToolKit required)
+
+```xml
+<If condition="HasFlag" flag="gp_scripts_t3">
+  <!-- T3 path -->
+</If>
+```

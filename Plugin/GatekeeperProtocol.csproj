@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProjectGuid>{A1B2C3D4-0001-0001-0001-000000000001}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>GatekeeperProtocol</RootNamespace>
+    <AssemblyName>GatekeeperProtocol</AssemblyName>
+    <!-- Hacknet.exe is built against .NET Framework 4.7.2 -->
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <!-- =====================================================================
+       Debug — builds to the plugins folder for instant live testing
+       ===================================================================== -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>D:\SteamLibrary\steamapps\common\Hacknet\BepInEx\plugins\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+
+  <!-- =====================================================================
+       Release — builds to bin/Release for archiving / distribution
+       ===================================================================== -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+
+  <!-- =====================================================================
+       Reference paths — all absolute to Hacknet install
+       ===================================================================== -->
+  <PropertyGroup>
+    <HacknetDir>D:\SteamLibrary\steamapps\common\Hacknet</HacknetDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Hacknet game assembly (contains Computer, OS, Programs, etc.) -->
+    <Reference Include="Hacknet">
+      <HintPath>$(HacknetDir)\Hacknet.exe</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Pathfinder modding API (BaseExecutable, CommandManager, etc.) -->
+    <Reference Include="PathfinderAPI">
+      <HintPath>$(HacknetDir)\BepInEx\plugins\PathfinderAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- BepInEx core (HacknetPlugin base class) -->
+    <Reference Include="BepInEx.Hacknet">
+      <HintPath>$(HacknetDir)\BepInEx\core\BepInEx.Hacknet.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(HacknetDir)\BepInEx\core\BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Harmony for method patching -->
+    <Reference Include="0Harmony">
+      <HintPath>$(HacknetDir)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- FNA (XNA replacement — Vector2, Rectangle, Color, etc.) -->
+    <Reference Include="FNA">
+      <HintPath>$(HacknetDir)\FNA.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- Standard .NET assemblies -->
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+
+  <!-- =====================================================================
+       Source files
+       ===================================================================== -->
+  <ItemGroup>
+    <!-- M1: Full plugin — ports, hardened/neural crackers, gp_debug -->
+    <Compile Include="GatekeeperProtocol.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <!-- =====================================================================
+       Post-build: copy .pdb alongside .dll in Debug so stack traces work
+       ===================================================================== -->
+  <Target Name="AfterBuild" Condition=" '$(Configuration)' == 'Debug' ">
+    <Message Text="[GP] Built to $(OutputPath)GatekeeperProtocol.dll" Importance="high" />
+  </Target>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
+</Project>

@@ -1,0 +1,21 @@
+# Build outputs
+Plugin/bin/
+Plugin/obj/
+
+# VS temp files
+.vs/
+*.user
+*.suo
+
+# Don't commit the built plugin — it lives in Hacknet's plugins folder
+*.dll
+*.pdb
+
+# Stale / scratch files from early setup
+Plugin/HelloWorld.cs
+Plugin/GatekeeperPlugin.csproj.old
+Plugin/GatekeeperPlugin.full.cs
+
+# OS junk
+Thumbs.db
+.DS_Store

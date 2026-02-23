@@ -1,0 +1,34 @@
+<HacknetExtension>
+
+  <Language>en-us</Language>
+
+  <Name>Gatekeeper Protocol</Name>
+  <AllowSaves>true</AllowSaves>
+
+  <StartingVisibleNodes>playerComp,gp_test_node</StartingVisibleNodes>
+  <StartingMission>Missions/RunStart.xml</StartingMission>
+  <StartingActions>Actions/StartingActions.xml</StartingActions>
+
+  <Description>GATEKEEPER PROTOCOL
+A roguelike hacking extension.
+
+Two custom port tiers stand between you and admin:
+  V2 ports — timed crack, DC penalty on failure
+  V3 ports — key file required, harder nodes
+
+Earn credits. Upgrade hardware. Push deeper.</Description>
+
+  <StartsWithTutorial>False</StartsWithTutorial>
+  <HasIntroStartup>false</HasIntroStartup>
+
+  <StartingTheme>Themes/ExampleTheme.xml</StartingTheme>
+  <IntroStartupSong>The_Quickening</IntroStartupSong>
+
+  <WorkshopDescription>Gatekeeper Protocol — a Hacknet extension with custom port tiers, crack executables, and a hardware upgrade economy.</WorkshopDescription>
+  <WorkshopLanguage>English</WorkshopLanguage>
+  <WorkshopVisibility>2</WorkshopVisibility>
+  <WorkshopTags>Extension</WorkshopTags>
+  <WorkshopPreviewImagePath>WorkshopLogo.png</WorkshopPreviewImagePath>
+  <WorkshopPublishID>NONE</WorkshopPublishID>
+
+</HacknetExtension>

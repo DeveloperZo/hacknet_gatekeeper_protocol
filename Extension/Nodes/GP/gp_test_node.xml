@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  gp_test_node — M1 Verification Node
+  Purpose: test all six GP crack executables end-to-end.
+  Attack order:
+    1. overload proxy (50s)
+    2. solve GATEKEEPER firewall
+    3. vanilla ports: SSHcrack / FTPBounce / WebServerWorm
+    4. V2 ports: GPV2SSH / GPV2FTP / GPV2Web (10s base, CPU mult)
+    5. V3 ports: GPV3SSH / GPV3FTP / GPV3Web (key file + 10s base, CPU mult)
+    6. porthack (portsForCrack = 3 — vanilla ports only, sufficient for M1)
+-->
+<Computer id="gp_test_node"
+          name="GP Test Node"
+          ip="10.0.0.10"
+          security="3"
+          allowsDefaultBootModule="false"
+          type="1">
+
+  <adminPass pass="admin" />
+
+  <!-- Vanilla ports (T1 crackers) -->
+  <ports>22, 21, 80</ports>
+
+  <!-- V2 custom ports -->
+  <PFPorts>ssh_v2:10022, ftp_v2:10021, web_v2:10080</PFPorts>
+
+  <!-- V3 custom ports -->
+  <PFPorts>ssh_v3:20022, ftp_v3:20021, web_v3:20080</PFPorts>
+
+  <!-- 3 ports required to porthack (vanilla set, enough for M1 verification) -->
+  <portsForCrack val="3" />
+
+  <!-- 120s trace — generous window for M1 testing all crack types -->
+  <trace time="120" />
+
+  <!-- Proxy must be overloaded first -->
+  <proxy time="50" />
+
+  <!-- Firewall: solution string is the gatekeeper identifier -->
+  <firewall level="3" solution="GATEKEEPER" additionalDelay="0.0" />
+
+  <admin type="progress" resetPassword="false" isSuper="false" />
+
+  <file path="home" name="README.txt">GP Test Node — M1 Verification
+===================================
+Ports present (9 total):
+  Vanilla : ssh (22) ftp (21) web (80)
+  V2      : ssh_v2   ftp_v2   web_v2
+  V3      : ssh_v3   ftp_v3   web_v3
+
+V3 crackers require key files in your /home.
+Get them from gp_relay_alpha, or check StartingActions.
+</file>
+
+</Computer>

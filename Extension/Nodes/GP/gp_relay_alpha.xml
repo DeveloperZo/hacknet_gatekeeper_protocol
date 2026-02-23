@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  gp_relay_alpha — V3 Key Relay
+  Purpose: holds the three V3 authentication key files.
+  Player must crack this node and scp each key to /home before
+  the corresponding V3 cracker will pass its key gate.
+
+  Easy entry: vanilla ports only, no proxy, no firewall, long trace.
+  The effort is in finding the node and doing the scp — not cracking it.
+-->
+<Computer id="gp_relay_alpha"
+          name="GP Relay Alpha"
+          ip="10.0.0.11"
+          security="1"
+          allowsDefaultBootModule="false"
+          type="3">
+
+  <adminPass pass="relay" />
+
+  <ports>22, 21</ports>
+  <portsForCrack val="2" />
+  <trace time="120" />
+
+  <admin type="progress" resetPassword="false" isSuper="false" />
+
+  <!-- V3 authentication key files — scp to /home before running V3 crackers -->
+  <file path="home" name="ssh_v3_key.dat">V3-KEY:SSH:ALPHA-0x4F2A</file>
+  <file path="home" name="ftp_v3_key.dat">V3-KEY:FTP:ALPHA-0x7B1C</file>
+  <file path="home" name="web_v3_key.dat">V3-KEY:WEB:ALPHA-0x9E33</file>
+
+  <file path="home" name="README.txt">V3 Authentication Keys
+scp ssh_v3_key.dat, ftp_v3_key.dat, web_v3_key.dat
+to your /home before running V3 crack tools.
+</file>
+
+</Computer>

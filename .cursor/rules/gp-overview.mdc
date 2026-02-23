@@ -1,0 +1,77 @@
+﻿---
+description: Core context for Gatekeeper Protocol — always apply to every session
+alwaysApply: true
+---
+
+# Gatekeeper Protocol — Project Overview
+
+A roguelike Hacknet BepInEx/Pathfinder mod. Each run seeds a different network topology and Gatekeeper behavior profile. Player upgrades hardware between runs.
+
+## Architecture
+
+| Layer | Technology | Location |
+|-------|-----------|----------|
+| Plugin (C#) | BepInEx 5 + Pathfinder API | `Plugin/GatekeeperProtocol.cs` |
+| Extension (XML) | Hacknet Extension format | `Extension/` |
+| Game install | Hacknet via Steam | `D:\SteamLibrary\steamapps\common\Hacknet\` |
+| Plugin output | BepInEx plugins | `…\BepInEx\plugins\GatekeeperProtocol.dll` |
+
+## Feature Pillars
+
+1. **Hardware RPG** — RAM/CPU/Net/SSD stats stored as flags, applied by plugin
+2. **Two-Tier Port System** — Standard ports (vanilla) + CORE ports (custom executables)
+3. **Gatekeeper Counterattacks** — Hacker scripts targeting playerComp on breach
+4. **SENTINEL AI Companion** — IRC-based, trust level determines behavior
+5. **Multiple Networks** — Zone-gated via ShowNode/HideNode actions
+
+## Milestones
+
+- **M1 (current)** — Custom ports + tiered cracker executables (v2/v3)
+- **M2** — CORE port executables (V3/VAULT/SOVEREIGN) + Gatekeeper scripts
+- **M3** — Hardware Harmony patches + upgrade shop + economy
+- **M4** — Run seeding + roguelike loop
+
+## Flag Naming Conventions
+
+```
+gp_scripts_t2 / gp_scripts_t3     — script tier gates (additive)
+gp_cpu_t2 / gp_cpu_t3 / gp_cpu_t4 — CPU multiplier (1.5x / 2.25x / 3.0x)
+gp_ram_tier_1..4                   — RAM tier (set by ZeroDayToolKit SetRAM)
+gp_net_tier_1..5                   — Network tier
+gp_ssd_tier_1..5                   — SSD tier
+```
+
+## Port Number Ranges
+
+```
+10022 / 10021 / 10080  — ssh_v2 / ftp_v2 / web_v2
+20022 / 20021 / 20080  — ssh_v3   / ftp_v3   / web_v3
+2001 / 2002 / 2003     — CORE: V3 / VAULT / SOVEREIGN (M2)
+```
+
+## Verified API Facts (confirmed in-game or by compile)
+
+| API | Status | Notes |
+|-----|--------|-------|
+| `Log.LogInfo()` | Verified | Use `Log`, not `Logger` |
+| `CommandManager.RegisterCommand(..., addAutocomplete: false)` | Verified | `true` crashes on startup |
+| Pathfinder `args[0]` = command name | Verified | User args start at `args[1]` |
+| `Computer.openPort(int portNum, string ip)` | Correct form | String overload may silently no-op |
+| `Computer.isPortOpen(string protocol)` | Compiles | Pathfinder extension method |
+| `needsRemoval = true` | Correct removal | Use for both success and failure exits |
+| `os.write()` ASCII-only | Verified | Unicode chars blank/break the line |
+| `[Pathfinder.Meta.Load.Executable("TOKEN")]` | Compiles | Auto-scanned, no manual register needed |
+
+## GP Executable Tokens (StartingActions.xml)
+
+```
+#GP_SSH_V2#   #GP_FTP_V2#   #GP_WEB_V2#
+#GP_SSH_V3#     #GP_FTP_V3#     #GP_WEB_V3#
+```
+
+## What Is NOT Being Built
+
+- Procedural node generation
+- Custom firewall/proxy types
+- Multiplayer
+- New defense layer types

@@ -1,0 +1,217 @@
+Errors Found. Writing report to Extensions/IntroExtension/report.txt
+
+Load Error:
+System.FormatException 
+ 
+COMPUTER LOAD ERROR:
+Error loading computer
+"Extensions/IntroExtension/Nodes\ExampleComputer.xml"
+
+Error: FormatException -
+Extensions/IntroExtension/Nodes/ExampleComputer.xml: Labyrinths DLC
+must be installed for DHSDaemon!
+
+Error: NotSupportedException - Labyrinths DLC must be installed for
+DHSDaemon!
+ 
+Source : Hacknet 
+ 
+System.FormatException: COMPUTER LOAD ERROR:
+Error loading computer
+"Extensions/IntroExtension/Nodes\ExampleComputer.xml"
+
+Error: FormatException -
+Extensions/IntroExtension/Nodes/ExampleComputer.xml: Labyrinths DLC
+must be installed for DHSDaemon!
+
+Error: NotSupportedException - Labyrinths DLC must be installed for
+DHSDaemon! ---> System.FormatException:
+Extensions/IntroExtension/Nodes/ExampleComputer.xml: Labyrinths DLC
+must be installed for DHSDaemon! ---> System.NotSupportedException:
+Labyrinths DLC must be installed for DHSDaemon!
+
+   at
+   Pathfinder.Replacements.ContentLoader.<>c.<.cctor>b__14_37(EventExecuto
+   r exec, ElementInfo info) IL<0x0011>
+
+   at Pathfinder.Util.XML.EventExecutor.ReadEndElement() IL<0x0075> 
+   at Pathfinder.Util.XML.EventReader.Parse() IL<0x0153> 
+   at Pathfinder.Util.XML.EventReader.TryParse(Exception& exception)
+   IL<0x0000>
+
+   --- End of inner exception stack trace --- 
+   at Pathfinder.Replacements.ContentLoader.LoadComputer(String filename,
+   Boolean preventAddingToNetmap, Boolean preventInitDaemons) IL<0x013F>
+
+   at Pathfinder.Replacements.ContentLoader.LoadComputerPrefix(String
+   filename, Boolean preventAddingToNetmap, Boolean preventInitDaemons,
+   Object& __result) IL<0x0000>
+
+   at DMD<Hacknet.ComputerLoader::loadComputer>(String filename, Boolean
+   preventAddingToNetmap, Boolean preventInitDaemons) IL<0xFFFFFFFF>
+
+   at Hacknet.Computer.loadFromFile(String filename) IL<0x0000> 
+   at
+   Hacknet.Extensions.ExtensionLoader.<>c__DisplayClass2.<LoadNewExtension
+   Session>b__0(String filename) IL<0x0023>
+
+   --- End of inner exception stack trace --- 
+   at
+   Hacknet.Extensions.ExtensionLoader.<>c__DisplayClass2.<LoadNewExtension
+   Session>b__0(String filename) IL<0x00A6>
+
+   at Hacknet.Utils.ActOnAllFilesRevursivley(String foldername, Action`1
+   FileAction) IL<0x000D>
+
+   at
+   DMD<Hacknet.Extensions.ExtensionLoader::LoadNewExtensionSession>(Extensi
+   onInfo info, Object os_obj) IL<0xFFFFFFFF>
+
+   at DMD<Hacknet.OS::LoadContent>(OS this) IL<0xFFFFFFFF> 
+   at Hacknet.ScreenManager.AddScreen(GameScreen screen, Nullable`1
+   controllingPlayer) IL<0x0027>
+
+   at Hacknet.ScreenManager.AddScreen(GameScreen screen) IL<0x000E> 
+   at Hacknet.Misc.ExtensionTests.SetupOSForTests(String
+   ActiveExtensionFoldername, ScreenManager screenMan) IL<0x004F>
+
+   at
+   DMD<Hacknet.Misc.ExtensionTests::TestExtensionForRuntime>(ScreenManager
+   screenMan, String path, Int32& errorsAdded) IL<0xFFFFFFFF>
+ 
+Inner : --------------- 
+ 
+System.FormatException  
+      
+    Extensions/IntroExtension/Nodes/ExampleComputer.xml: Labyrinths DLC 
+    must be installed for DHSDaemon! 
+      
+    Source : PathfinderAPI  
+      
+    System.FormatException: 
+    Extensions/IntroExtension/Nodes/ExampleComputer.xml: Labyrinths DLC 
+    must be installed for DHSDaemon! ---> System.NotSupportedException: 
+    Labyrinths DLC must be installed for DHSDaemon! 
+     
+       at 
+       Pathfinder.Replacements.ContentLoader.<>c.<.cctor>b__14_37(EventExecuto
+       
+
+       r exec, ElementInfo info) IL<0x0011> 
+     
+       at Pathfinder.Util.XML.EventExecutor.ReadEndElement() IL<0x0075>  
+       at Pathfinder.Util.XML.EventReader.Parse() IL<0x0153>  
+       at Pathfinder.Util.XML.EventReader.TryParse(Exception& exception) 
+       IL<0x0000> 
+     
+       --- End of inner exception stack trace ---  
+       at Pathfinder.Replacements.ContentLoader.LoadComputer(String filename,
+
+       Boolean preventAddingToNetmap, Boolean preventInitDaemons) IL<0x013F>
+     
+       at Pathfinder.Replacements.ContentLoader.LoadComputerPrefix(String
+
+       filename, Boolean preventAddingToNetmap, Boolean preventInitDaemons,
+
+       Object& __result) IL<0x0000> 
+     
+       at DMD<Hacknet.ComputerLoader::loadComputer>(String filename, Boolean
+
+       preventAddingToNetmap, Boolean preventInitDaemons) IL<0xFFFFFFFF> 
+     
+       at Hacknet.Computer.loadFromFile(String filename) IL<0x0000>  
+       at 
+       Hacknet.Extensions.ExtensionLoader.<>c__DisplayClass2.<LoadNewExtension
+       
+
+       Session>b__0(String filename) IL<0x0023> 
+      
+    Inner : ---------------  
+      
+    System.NotSupportedException   
+           
+        Labyrinths DLC must be installed for DHSDaemon!   
+           
+        Source : PathfinderAPI   
+           
+        System.NotSupportedException: Labyrinths DLC must be installed for
+
+        DHSDaemon!  
+          
+           at  
+           Pathfinder.Replacements.ContentLoader.<>c.<.cctor>b__14_37(EventExecuto
+           
+            
+     
+           r exec, ElementInfo info) IL<0x0011>  
+          
+           at Pathfinder.Util.XML.EventExecutor.ReadEndElement() IL<0x0075>
+
+           at Pathfinder.Util.XML.EventReader.Parse() IL<0x0153>   
+           at Pathfinder.Util.XML.EventReader.TryParse(Exception& exception)
+
+           IL<0x0000>  
+           
+           
+           
+           at  
+           Pathfinder.Replacements.ContentLoader.<>c.<.cctor>b__14_37(EventExecuto
+           
+            
+     
+           r exec, ElementInfo info) IL<0x0011>  
+          
+           at Pathfinder.Util.XML.EventExecutor.ReadEndElement() IL<0x0075>
+
+           at Pathfinder.Util.XML.EventReader.Parse() IL<0x0153>   
+           at Pathfinder.Util.XML.EventReader.TryParse(Exception& exception)
+
+           IL<0x0000>  
+      
+      
+      
+       at Pathfinder.Replacements.ContentLoader.LoadComputer(String filename,
+
+       Boolean preventAddingToNetmap, Boolean preventInitDaemons) IL<0x013F>
+     
+       at Pathfinder.Replacements.ContentLoader.LoadComputerPrefix(String
+
+       filename, Boolean preventAddingToNetmap, Boolean preventInitDaemons,
+
+       Object& __result) IL<0x0000> 
+     
+       at DMD<Hacknet.ComputerLoader::loadComputer>(String filename, Boolean
+
+       preventAddingToNetmap, Boolean preventInitDaemons) IL<0xFFFFFFFF> 
+     
+       at Hacknet.Computer.loadFromFile(String filename) IL<0x0000>  
+       at 
+       Hacknet.Extensions.ExtensionLoader.<>c__DisplayClass2.<LoadNewExtension
+       
+
+       Session>b__0(String filename) IL<0x0023> 
+ 
+ 
+ 
+   at
+   Hacknet.Extensions.ExtensionLoader.<>c__DisplayClass2.<LoadNewExtension
+   Session>b__0(String filename) IL<0x00A6>
+
+   at Hacknet.Utils.ActOnAllFilesRevursivley(String foldername, Action`1
+   FileAction) IL<0x000D>
+
+   at
+   DMD<Hacknet.Extensions.ExtensionLoader::LoadNewExtensionSession>(Extensi
+   onInfo info, Object os_obj) IL<0xFFFFFFFF>
+
+   at DMD<Hacknet.OS::LoadContent>(OS this) IL<0xFFFFFFFF> 
+   at Hacknet.ScreenManager.AddScreen(GameScreen screen, Nullable`1
+   controllingPlayer) IL<0x0027>
+
+   at Hacknet.ScreenManager.AddScreen(GameScreen screen) IL<0x000E> 
+   at Hacknet.Misc.ExtensionTests.SetupOSForTests(String
+   ActiveExtensionFoldername, ScreenManager screenMan) IL<0x004F>
+
+   at
+   DMD<Hacknet.Misc.ExtensionTests::TestExtensionForRuntime>(ScreenManager
+   screenMan, String path, Int32& errorsAdded) IL<0xFFFFFFFF>

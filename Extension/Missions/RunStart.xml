@@ -1,0 +1,39 @@
+<mission id="gp_run_start" activeCheck="false" shouldIgnoreSenderVerification="true">
+
+  <title>GATEKEEPER PROTOCOL — INITIALIZE</title>
+  <sender>SENTINEL</sender>
+  <email>
+    <body>
+Secure channel open.
+
+Your loadout has been configured. Run gp_debug to verify system state.
+
+The test node is on your map. It runs all port tiers.
+
+Crack sequence:
+  1. overload                               (proxy)
+  2. analyze, solve GATEKEEPER              (firewall)
+  3. SSHcrack / FTPBounce / WebServerWorm   (vanilla)
+  4. SSHcrack_v2 / FTPBounce_v2 / WebServerWorm_v2  (V2)
+  5. SSHcrack_v3 / FTPBounce_v3 / WebServerWorm_v3  (V3)
+  6. porthack
+
+V3 executables require key files. Check your /home — they are pre-loaded for M1 testing.
+
+-- SENTINEL
+    </body>
+    <attachments />
+  </email>
+
+  <goals>
+    <goal type="getAdminElsewhere" target="gp_test_node" />
+  </goals>
+
+  <missionStart>
+    <delay>1.0</delay>
+    <AddIRCMessage Author="SENTINEL" TargetComp="playerComp" Delay="1.5">
+      GP loadout confirmed. Test node online. Run gp_debug to verify.
+    </AddIRCMessage>
+  </missionStart>
+
+</mission>

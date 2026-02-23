@@ -1,0 +1,105 @@
+﻿---
+description: C# conventions and Pathfinder/BepInEx API rules for the Gatekeeper Protocol plugin
+globs: Plugin/**/*.cs
+alwaysApply: false
+---
+
+# GP Plugin — C# Conventions
+
+## Project Config
+
+- **Target framework:** `.NET Framework 4.7.2` (Hacknet.exe requires 4.7.2 — NOT 4.0)
+- **Platform:** `x86`
+- **Namespace:** `GatekeeperProtocol`
+- **MSBuild:** `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe`
+- **Config:** `Debug|x86` → output goes directly to `BepInEx\plugins\`
+
+## BepInEx API — Known Gotchas
+
+```csharp
+// CORRECT: BepInEx.Hacknet uses Log, not Logger
+Log.LogInfo("[GP] message");
+
+// CORRECT: HacknetPlugin lifecycle
+public override bool Load()   { ... return true; }
+public override bool Unload() { ... return true; }
+// WRONG: OnDestroy() does not exist on HacknetPlugin
+
+// CORRECT: suppress autocomplete rebuild during startup (crashes otherwise)
+CommandManager.RegisterCommand("gp_cmd", Handler, addAutocomplete: false);
+```
+
+## Pathfinder Command Args
+
+Pathfinder passes the **command name as `args[0]`**. User arguments start at `args[1]`.
+
+```csharp
+// Command typed: "gp_setscripts t2"
+// args array:    ["gp_setscripts", "t2"]
+if (args.Length < 2) { os.write("Usage: ..."); return; }
+string input = args[1];
+```
+
+## os.write() — ASCII Only
+
+Hacknet's bitmap terminal font does not support Unicode. These silently break or blank the line:
+- ❌ Box-drawing: `╔ ═ ║ ╚ ╝`
+- ❌ Em dash: `—`  (U+2014)
+- ✅ Use: `=====`, `-`, `|`, `*`
+
+Note: `TextItem.doLabel()` in `Draw()` uses FNA/MonoGame rendering and may tolerate some Unicode,
+but use ASCII there too for safety and consistency.
+
+## Port API
+
+`Computer.openPort()` takes `(int portNum, string callerIP)`. **Always store and pass the port number.**
+
+```csharp
+// In base class:
+protected string portName;    // "ssh_v2"   — for display / isPortOpen checks
+protected int    portNumber;  // 10022             — for openPort()
+
+// Constructor:
+portName   = port;
+portNumber = portNum;
+
+// On solve:
+target.openPort(portNumber, os.thisComputer.ip);   // CORRECT
+target.openPort(portName,   os.thisComputer.ip);   // WRONG — may silently no-op
+```
+
+`Computer.isPortOpen(string protocol)` — Pathfinder extension method, string name is fine here.
+
+## ExeModule Removal
+
+```csharp
+needsRemoval = true;   // correct signal — removes exe from display panel
+// isExiting exists on BaseExecutable but has different semantics; use needsRemoval for both
+// success and clean failure exits
+```
+
+## HardwareState Pattern
+
+```csharp
+// Always read flags at call time — flags can change during a session
+public static float CpuMultiplier(OS os)
+{
+    if (os.Flags.HasFlag("gp_cpu_t4")) return 3.0f;
+    if (os.Flags.HasFlag("gp_cpu_t3")) return 2.25f;
+    if (os.Flags.HasFlag("gp_cpu_t2")) return 1.5f;
+    return 1.0f;
+}
+```
+
+## Executable Registration
+
+Pathfinder auto-scans the loaded assembly for `[Pathfinder.Meta.Load.Executable("TOKEN")]` attributes.
+No manual `ExecutableManager.RegisterExecutable()` call needed in `Load()`.
+Token string must match `FileContents` in `AddAsset` XML exactly (case-sensitive, include `#` delimiters).
+
+## Build & Deploy
+
+```powershell
+# From project root — kills Hacknet, builds, deploys, relaunches
+.\scripts\deploy.ps1
+```
