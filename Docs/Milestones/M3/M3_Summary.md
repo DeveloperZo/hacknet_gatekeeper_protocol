@@ -7,11 +7,26 @@ and hardware deductions now actually apply. ZDTK re-enabled and compatibility re
 
 ## Networks
 
-### Multi-Network Traversal
-Three named networks: h4ck, th3, p14n3t.
-Plus player's home network.
+### Full Vision — 7 Networks
+The complete game ships 7 networks total (player home + 6 hostile).
+Networks use generic identifiers for now; flavour names are a later polish pass.
 
-Player can list all known networks via gp_networks command.
+| ID | Label | Notes |
+|---|---|---|
+| `net_home` | Home | Player's own network — always present |
+| `net_01` | Network 01 | M3 slice — hostile |
+| `net_02` | Network 02 | M3 slice — hostile |
+| `net_03` | Network 03 | Later milestone |
+| `net_04` | Network 04 | Later milestone |
+| `net_05` | Network 05 | Later milestone |
+| `net_06` | Network 06 | Later milestone |
+
+### M3 Slice — 3 Networks
+M3 implements the first 3 networks: `net_home` (player) + `net_01` and `net_02` (hostile).
+Remaining 4 hostile networks are stubs — listed in `gp_networks` as LOCKED, no nodes.
+
+### Multi-Network Traversal
+Player can list all known networks via `gp_networks` command.
 Reuses existing map UI — each network renders in a distinct color.
 Selecting a network drills into its node map.
 Player traverses between networks by cracking border/gateway nodes.
@@ -23,15 +38,14 @@ Each network has a profile applied to all member nodes:
 - Reward multiplier (affects resource drops from nodes in that network)
 - Defense difficulty modifier (affects base defense levels of nodes)
 
-Example profiles:
-- h4ck: fast crack, fast trace, high rewards, medium defense
-- th3: medium crack, slow trace, medium rewards, high defense
-- p14n3t: slow crack, very slow trace, low rewards, low defense
+M3 example profiles (generic — tuned for balance, not flavour):
+- `net_01`: fast crack, fast trace, medium rewards, low defense  *(entry network — accessible)*
+- `net_02`: medium crack, medium trace, high rewards, high defense
 
 Network profiles are set at run start with minor random variance per seed.
 
 ### Player Home Network
-Player's nodes form their own named network.
+Player's nodes form their own named network (`net_home`).
 Income generation: held nodes generate gp_scp passively over time.
 Rate = base_rate * nodes_held * network_income_modifier.
 Income ticks in Update() and writes to gp_wallet flag.
@@ -98,10 +112,11 @@ gp_locale.xml populated with all required keys.
 Verified: Extensions menu loads with both GatekeeperProtocol.dll and ZeroDayToolKit.dll active.
 
 ## Completion Criteria
-- gp_networks lists all networks with correct color coding
-- Network drill-down shows correct node map per network
+- `gp_networks` lists net_home + net_01 + net_02 (active) and net_03–net_06 (LOCKED)
+- Each active network renders in a distinct color on the map
+- Network drill-down shows correct node map for net_home, net_01, net_02
 - Network bonuses/debuffs apply correctly to crack speed, trace speed, rewards
-- Player home network generates income per tick
+- Player home network (net_home) generates income per tick
 - All four hardware components upgrade correctly via shop
 - Resource drops scale with HDD tier and network reward modifier
 - Loss formula applies real currency and hardware deductions
