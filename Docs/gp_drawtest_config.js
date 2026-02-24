@@ -9,16 +9,18 @@ const GP_CONFIG_KEY = 'gp_drawtest_params';
 
 // Defaults match DrawTestParams in the plugin
 const GP_DEFAULTS = {
-  headerH:    28,
-  targetRows: 6,
-  ramCostV2:  256,
-  ramCostV3:  384,
-  charW:      6,        // approximate tinyfont advance width
-  charH:      11,       // approximate tinyfont line height
+  headerH:     28,
+  targetRows:  6,
+  ramCostV2:   256,
+  ramCostV3:   384,
+  accentH:     3,       // accent bar height at bottom of header
+  labelOffset: 11,      // header text baseline = headerH - labelOffset
+  charW:       6,       // approximate tinyfont advance width
+  charH:       11,      // approximate tinyfont line height
   // Draw style per exe family — mirrors DrawTestParams in GatekeeperProtocol.cs
-  sshStyle:   'matrix', // "matrix" | "packets"
-  ftpStyle:   'packets',
-  webStyle:   'matrix',
+  sshStyle:    'matrix', // "matrix" | "packets"
+  ftpStyle:    'packets',
+  webStyle:    'matrix',
 };
 
 // Mirrors each concrete cracker class: GPSSHCrackV2, GPFTPCrackV2 ... GPWebCrackV3
@@ -91,19 +93,21 @@ function gpModuleH(cfg, tier, playerRam, panelFullH) {
 
 // Draw the module header bar (mirrors base.Draw + drawOutline in C#).
 function gpDrawHeader(ctx, cracker, cfg, panelW) {
-  const h  = cfg.headerH;
-  const cH = cfg.charH;
+  const h           = cfg.headerH;
+  const accentH     = cfg.accentH     ?? 3;
+  const labelOffset = cfg.labelOffset ?? 11;
+  const cH          = cfg.charH;
   const cc = GP_TIER_CRACKED[cracker.tier];
   const lc = GP_TIER_LABEL_COLOR[cracker.tier];
   ctx.fillStyle = '#12121e';
   ctx.fillRect(0, 0, panelW, h);
   ctx.fillStyle = gpToRgb(cc, 0.7);
-  ctx.fillRect(0, h - 2, panelW, 2);
+  ctx.fillRect(0, h - accentH, panelW, accentH);
   ctx.font = `${Math.max(9, cH - 2)}px monospace`;
   ctx.fillStyle = gpToRgb(lc, 0.9);
-  ctx.fillText(cracker.label, 6, h - 7);
+  ctx.fillText(cracker.label, 6, h - labelOffset);
   ctx.fillStyle = gpToRgb(cc, 0.8);
-  ctx.fillText(':' + cracker.port, panelW - 44, h - 7);
+  ctx.fillText(':' + cracker.port, panelW - 44, h - labelOffset);
   if (cracker.key) {
     ctx.font = '8px monospace';
     ctx.fillStyle = gpToRgb({ r:80, g:200, b:255 }, 0.7);
@@ -153,4 +157,69 @@ function gpDrawMatrix(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) {
         : gpToRgb(GP_UNCRACKED);
       ctx.fillText(state.grid[r][c], cX + c * cW, cY + r * cH + cH - 2);
     }
+}
+
+// Packets draw — rows complete top-to-bottom, columns left-to-right.
+// Mirrors DrawPackets() in GatekeeperProtocol.cs.
+function gpDrawPackets(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) {
+  const crackedRows = (pct * rows) | 0;
+  const crackedCols = ((pct * rows - crackedRows) * cols) | 0;
+  ctx.font = `${cH - 1}px monospace`;
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      let color;
+      if      (r < crackedRows || (r === crackedRows && c < crackedCols)) color = gpToRgb(accent);
+      else if (r === crackedRows && c === crackedCols)                    color = 'rgba(255,255,255,0.9)';
+      else                                                                color = gpToRgb(GP_UNCRACKED);
+      ctx.fillStyle = color;
+      ctx.fillText(state.grid[r][c], cX + c * cW, cY + r * cH + cH - 2);
+    }
+}
+
+// Waveform draw — sine-wave sweep, left-to-right per row with vertical ripple.
+// Mirrors DrawWaveform() in GatekeeperProtocol.cs.
+function gpDrawWaveform(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) {
+  ctx.font = `${cH - 1}px monospace`;
+  for (let r = 0; r < rows; r++) {
+    const rowPhase = r / rows * 0.3;
+    for (let c = 0; c < cols; c++) {
+      const colPct = c / cols;
+      const front  = pct + 0.08 * Math.sin(r * 1.5 + pct * 6.28) - rowPhase;
+      let color;
+      if      (colPct <= front - 0.06) color = gpToRgb(accent);
+      else if (colPct <= front)        color = 'rgba(255,255,255,0.9)'; // leading edge
+      else                             color = gpToRgb(GP_UNCRACKED);
+      ctx.fillStyle = color;
+      ctx.fillText(state.grid[r][c], cX + c * cW, cY + r * cH + cH - 2);
+    }
+  }
+}
+
+// Waveform flicker — only cells ahead of the wave front randomise.
+function gpTickFlickerWaveform(state, dt, cols, rows, pct) {
+  state.timer += dt;
+  if (state.timer >= 0.08) {
+    state.timer = 0;
+    for (let r = 0; r < rows; r++) {
+      const rowPhase = r / rows * 0.3;
+      for (let c = 0; c < cols; c++) {
+        const front = pct + 0.08 * Math.sin(r * 1.5 + pct * 6.28) - rowPhase;
+        if (c / cols > front) state.grid[r][c] = gpRndHex();
+      }
+    }
+  }
+}
+
+// Packets flicker — only uncracked region randomises each tick.
+function gpTickFlickerPackets(state, dt, cols, rows, pct) {
+  state.timer += dt;
+  if (state.timer >= 0.08) {
+    state.timer = 0;
+    const cR = (pct * rows) | 0;
+    const cC = ((pct * rows - cR) * cols) | 0;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (r > cR || (r === cR && c >= cC))
+          state.grid[r][c] = gpRndHex();
+  }
 }

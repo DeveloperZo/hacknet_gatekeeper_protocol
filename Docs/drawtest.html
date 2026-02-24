@@ -86,6 +86,28 @@ section h2 { font-size: 11px; color: #555; letter-spacing: 1px; border-bottom: 1
 }
 .copy-btn:hover { background: #0f8; color: #000; }
 .copy-note { font-size: 10px; color: #444; margin-top: 6px; }
+
+/* live preview */
+.prev-controls {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.prev-canvases { display: flex; gap: 16px; overflow-x: auto; }
+.prev-canvases canvas { display: block; image-rendering: pixelated; }
+.clabel { font-size: 9px; margin-bottom: 3px; letter-spacing: 0.5px; }
+.v2lbl  { color: #c87800; }
+.v3lbl  { color: #00b4dc; }
+.pbtn {
+  padding: 2px 10px; background: #111; border: 1px solid #333;
+  color: #666; font-family: monospace; font-size: 12px; cursor: pointer;
+}
+.pbtn:hover        { border-color: #0f8; color: #0f8; }
+.pbtn.active       { border-color: #0f8; color: #0f8; background: #0a1a0a; }
+#prevFamily {
+  background: #141414; border: 1px solid #2a2a2a; color: #0f8;
+  font-family: monospace; font-size: 11px; padding: 3px 6px;
+}
+#prevPct { flex: 1; min-width: 80px; accent-color: #0f8; }
+#prevPctVal { color: #0f8; font-size: 11px; min-width: 36px; }
 </style>
 </head>
 <body>
@@ -136,6 +158,22 @@ section h2 { font-size: 11px; color: #555; letter-spacing: 1px; border-bottom: 1
         <div class="derived">SSH/FTP/Web V3 ramCost</div>
       </div>
       <div class="cfg-row">
+        <label>ACCENT H</label>
+        <div class="ctrl-line">
+          <input type="range" id="accentH" min="1" max="8" value="3">
+          <span class="val" id="accentHVal">3</span>
+        </div>
+        <div class="derived">tier-color bar height at bottom of header (px)</div>
+      </div>
+      <div class="cfg-row">
+        <label>LABEL OFFSET</label>
+        <div class="ctrl-line">
+          <input type="range" id="labelOffset" min="10" max="80" value="40">
+          <span class="val" id="labelOffsetVal">40</span>
+        </div>
+        <div class="derived">header text baseline = headerH − labelOffset</div>
+      </div>
+      <div class="cfg-row">
         <label>CHAR W  <span style="color:#333">(approx tinyfont)</span></label>
         <div class="ctrl-line">
           <input type="range" id="charW" min="4" max="14" value="6">
@@ -148,6 +186,33 @@ section h2 { font-size: 11px; color: #555; letter-spacing: 1px; border-bottom: 1
           <input type="range" id="charH" min="6" max="18" value="11">
           <span class="val" id="charHVal">11</span>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LIVE PREVIEW ── -->
+  <section>
+    <h2>LIVE PREVIEW  <span style="color:#333;font-size:9px;font-weight:normal">— updates on every slider change</span></h2>
+    <div class="prev-controls">
+      <select id="prevFamily">
+        <option value="ssh">SSHcrack</option>
+        <option value="ftp">FTPBounce</option>
+        <option value="web">WebServerWorm</option>
+      </select>
+      <span style="color:#444;font-size:10px">progress</span>
+      <input type="range" id="prevPct" min="0" max="100" value="45">
+      <span id="prevPctVal">45%</span>
+      <button class="pbtn" id="prevPlay">▶</button>
+      <button class="pbtn" id="prevRestart">⟳</button>
+    </div>
+    <div class="prev-canvases">
+      <div>
+        <div class="clabel v2lbl" id="prevLabelV2">SSHcrack_v2 · :22 · 10s · no key</div>
+        <canvas id="prevV2" width="220" height="150"></canvas>
+      </div>
+      <div>
+        <div class="clabel v3lbl" id="prevLabelV3">SSHcrack_v3 · :20022 · 15s · [KEY]</div>
+        <canvas id="prevV3" width="220" height="225"></canvas>
       </div>
     </div>
   </section>
@@ -218,6 +283,7 @@ section h2 { font-size: 11px; color: #555; letter-spacing: 1px; border-bottom: 1
         <select id="sshStyle">
           <option value="matrix">matrix</option>
           <option value="packets">packets</option>
+          <option value="waveform">waveform</option>
         </select>
         <div class="hint">SSHcrack_v2 / v3</div>
       </div>
@@ -306,15 +372,19 @@ function generateCfgContent() {
     '# Auto-saved from drawtest.html — changes apply within 1 second while Hacknet runs.',
     '# ramCostV2/V3 take effect on the next cracker spawn.',
     '',
-    `headerH    = ${cfg.headerH}`,
-    `targetRows = ${cfg.targetRows}`,
-    `ramCostV2  = ${cfg.ramCostV2}`,
-    `ramCostV3  = ${cfg.ramCostV3}`,
+    `headerH     = ${cfg.headerH}`,
+    `targetRows  = ${cfg.targetRows}`,
+    `ramCostV2   = ${cfg.ramCostV2}`,
+    `ramCostV3   = ${cfg.ramCostV3}`,
     '',
-    '# Draw style per exe family: matrix | packets',
-    `sshStyle   = ${cfg.sshStyle || 'matrix'}`,
-    `ftpStyle   = ${cfg.ftpStyle || 'packets'}`,
-    `webStyle   = ${cfg.webStyle || 'matrix'}`,
+    '# Header layout',
+    `accentH     = ${cfg.accentH  ?? 3}`,
+    `labelOffset = ${cfg.labelOffset ?? 11}`,
+    '',
+    '# Draw style per exe family: matrix | packets | waveform',
+    `sshStyle    = ${cfg.sshStyle || 'matrix'}`,
+    `ftpStyle    = ${cfg.ftpStyle || 'packets'}`,
+    `webStyle    = ${cfg.webStyle || 'matrix'}`,
   ].join('\n') + '\n';
 }
 
@@ -326,7 +396,7 @@ if (!window.showOpenFilePicker) {
 }
 
 // ---- bind sliders / inputs -----------------------------------------------
-function onChange() { gpSaveConfig(cfg); refresh(); writeCfgFile(); }
+function onChange() { gpSaveConfig(cfg); refresh(); writeCfgFile(); reinitPreview(); renderPreview(); }
 
 function bindRange(id, valId, key) {
   const el = document.getElementById(id);
@@ -353,10 +423,12 @@ function bindSelect(id, key, defaultVal) {
   el.addEventListener('change', () => { cfg[key] = el.value; onChange(); });
 }
 
-bindRange('headerH',    'headerHVal',    'headerH');
-bindRange('targetRows', 'targetRowsVal', 'targetRows');
-bindRange('charW',      'charWVal',      'charW');
-bindRange('charH',      'charHVal',      'charH');
+bindRange('headerH',     'headerHVal',     'headerH');
+bindRange('targetRows',  'targetRowsVal',  'targetRows');
+bindRange('accentH',     'accentHVal',     'accentH');
+bindRange('labelOffset', 'labelOffsetVal', 'labelOffset');
+bindRange('charW',       'charWVal',       'charW');
+bindRange('charH',       'charHVal',       'charH');
 bindNum('ramCostV2', 'ramCostV2');
 bindNum('ramCostV3', 'ramCostV3');
 bindSelect('sshStyle', 'sshStyle', 'matrix');
@@ -364,7 +436,7 @@ bindSelect('ftpStyle', 'ftpStyle', 'packets');
 bindSelect('webStyle', 'webStyle', 'matrix');
 
 ['playerRam', 'panelFullH'].forEach(id => {
-  document.getElementById(id).addEventListener('change', refresh);
+  document.getElementById(id).addEventListener('change', () => { reinitPreview(); renderPreview(); refresh(); });
 });
 
 // ---- refresh height table + copy box -------------------------------------
@@ -402,6 +474,135 @@ document.getElementById('copyBtn').addEventListener('click', () => {
     .catch(() => {});
 });
 
+// ---- Live Preview --------------------------------------------------------
+const PREV_W = 220;
+let prevFamily  = 'ssh';
+let prevPct     = 0.45;
+let prevPlaying = false;
+let prevLastT   = null;
+let prevRaf     = null;
+let prevStateV2 = null;
+let prevStateV3 = null;
+
+function getPrevCracker(v) { return GP_CRACKERS[prevFamily + '_v' + v]; }
+
+function getPreviewStyle() {
+  if (prevFamily === 'ftp') return cfg.ftpStyle || 'packets';
+  if (prevFamily === 'web') return cfg.webStyle || 'matrix';
+  return cfg.sshStyle || 'matrix';
+}
+
+function reinitPreview() {
+  const playerRam  = parseInt(document.getElementById('playerRam').value);
+  const panelFullH = parseInt(document.getElementById('panelFullH').value);
+  const cv2 = document.getElementById('prevV2');
+  const cv3 = document.getElementById('prevV3');
+  cv2.height = gpModuleH(cfg, 2, playerRam, panelFullH);
+  cv3.height = gpModuleH(cfg, 3, playerRam, panelFullH);
+  const [c2, r2] = gpGetColsRows(PREV_W, cv2.height, cfg);
+  const [c3, r3] = gpGetColsRows(PREV_W, cv3.height, cfg);
+  prevStateV2 = gpInitGrid(c2, r2);
+  prevStateV3 = gpInitGrid(c3, r3);
+  const crV2 = getPrevCracker(2), crV3 = getPrevCracker(3);
+  document.getElementById('prevLabelV2').textContent =
+    crV2.label + ' · :' + crV2.port + ' · ' + crV2.solveTime + 's · ' + (crV2.key || 'no key');
+  document.getElementById('prevLabelV3').textContent =
+    crV3.label + ' · :' + crV3.port + ' · ' + crV3.solveTime + 's · ' + (crV3.key ? '[KEY]' : 'no key');
+}
+
+function renderPrevCanvas(canvasId, tier, state) {
+  const canvas  = document.getElementById(canvasId);
+  const cracker = getPrevCracker(tier);
+  const ctx     = canvas.getContext('2d');
+  const h       = canvas.height;
+  const [cols, rows, , CW, CH] = gpGetColsRows(PREV_W, h, cfg);
+  const accent = GP_TIER_CRACKED[cracker.tier];
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(0, 0, PREV_W, h);
+  if (rows > 0 && state) {
+    const style = getPreviewStyle();
+    const cX = 4, cY = cfg.headerH;
+    if      (style === 'packets')  gpDrawPackets (ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
+    else if (style === 'waveform') gpDrawWaveform(ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
+    else                           gpDrawMatrix  (ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
+  }
+  gpDrawHeader(ctx, cracker, cfg, PREV_W);
+  gpDrawOutline(ctx, cracker.tier, PREV_W, h);
+}
+
+function renderPreview() {
+  if (!prevStateV2 || !prevStateV3) reinitPreview();
+  renderPrevCanvas('prevV2', 2, prevStateV2);
+  renderPrevCanvas('prevV3', 3, prevStateV3);
+}
+
+function prevFrame(ts) {
+  if (!prevPlaying) { prevRaf = null; return; }
+  if (prevLastT === null) prevLastT = ts;
+  const dt = Math.min((ts - prevLastT) / 1000, 0.1);
+  prevLastT = ts;
+
+  prevPct = Math.min(1, prevPct + dt / getPrevCracker(2).solveTime);
+  document.getElementById('prevPct').value = Math.round(prevPct * 100);
+  document.getElementById('prevPctVal').textContent = Math.round(prevPct * 100) + '%';
+
+  const cv2 = document.getElementById('prevV2'), cv3 = document.getElementById('prevV3');
+  const [c2, r2] = gpGetColsRows(PREV_W, cv2.height, cfg);
+  const [c3, r3] = gpGetColsRows(PREV_W, cv3.height, cfg);
+  const style = getPreviewStyle();
+  const tick = style === 'packets'  ? gpTickFlickerPackets
+             : style === 'waveform' ? gpTickFlickerWaveform
+             :                        gpTickFlicker;
+  tick(prevStateV2, dt, c2, r2, prevPct);
+  tick(prevStateV3, dt, c3, r3, prevPct);
+
+  renderPreview();
+
+  if (prevPct >= 1) {
+    prevPlaying = false;
+    const btn = document.getElementById('prevPlay');
+    btn.textContent = '▶'; btn.classList.remove('active');
+    setTimeout(() => {
+      prevPct = 0;
+      document.getElementById('prevPct').value = 0;
+      document.getElementById('prevPctVal').textContent = '0%';
+      reinitPreview(); renderPreview();
+    }, 600);
+    prevRaf = null;
+    return;
+  }
+  prevRaf = requestAnimationFrame(prevFrame);
+}
+
+document.getElementById('prevFamily').addEventListener('change', e => {
+  prevFamily = e.target.value; reinitPreview(); renderPreview();
+});
+document.getElementById('prevPct').addEventListener('input', e => {
+  prevPct = parseInt(e.target.value) / 100;
+  document.getElementById('prevPctVal').textContent = e.target.value + '%';
+  if (!prevStateV2) reinitPreview();
+  renderPreview();
+});
+document.getElementById('prevPlay').addEventListener('click', () => {
+  prevPlaying = !prevPlaying;
+  const btn = document.getElementById('prevPlay');
+  btn.textContent = prevPlaying ? '⏸' : '▶';
+  btn.classList.toggle('active', prevPlaying);
+  if (prevPlaying) { prevLastT = null; if (!prevRaf) prevRaf = requestAnimationFrame(prevFrame); }
+});
+document.getElementById('prevRestart').addEventListener('click', () => {
+  prevPlaying = false;
+  const btn = document.getElementById('prevPlay');
+  btn.textContent = '▶'; btn.classList.remove('active');
+  prevPct = 0;
+  document.getElementById('prevPct').value = 0;
+  document.getElementById('prevPctVal').textContent = '0%';
+  reinitPreview(); renderPreview();
+});
+
+// ---- init ----------------------------------------------------------------
+reinitPreview();
+renderPreview();
 refresh();
 </script>
 </body>

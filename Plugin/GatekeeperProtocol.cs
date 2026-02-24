@@ -159,16 +159,18 @@ namespace GatekeeperProtocol
     {
         // All values editable live in BepInEx/plugins/gp_drawtest.cfg — no rebuild needed.
         // Changes apply within 1 second while Hacknet is running.
-        public static int    HeaderH    = 28;     // px below module top where matrix starts
-        public static int    TargetRows = 6;      // rows the animation always tries to show
-        public static int    RamCostV2  = 256;    // module height ∝ ramCost/playerRam
-        public static int    RamCostV3  = 384;
+        public static int    HeaderH     = 28;    // px below module top where matrix starts
+        public static int    TargetRows  = 6;     // rows the animation always tries to show
+        public static int    RamCostV2   = 256;   // module height ∝ ramCost/playerRam
+        public static int    RamCostV3   = 384;
+        public static int    AccentH     = 3;     // accent bar height (px) at bottom of header
+        public static int    LabelOffset = 11;    // header text baseline: HEADER_H - LabelOffset
         // Draw style per exe family. Valid values: "matrix" | "packets"
         // matrix  — random threshold hex grid (same as vanilla SSHcrack)
         // packets — rows complete top-to-bottom, columns left-to-right (FTP feel)
-        public static string SshStyle   = "matrix";
-        public static string FtpStyle   = "packets";
-        public static string WebStyle   = "matrix";
+        public static string SshStyle    = "matrix";
+        public static string FtpStyle    = "packets";
+        public static string WebStyle    = "matrix";
 
         private static string   _cfgPath  = null;
         private static DateTime _lastRead = DateTime.MinValue;
@@ -205,13 +207,16 @@ namespace GatekeeperProtocol
                     if (key == "webstyle") { WebStyle = val.ToLowerInvariant(); continue; }
                     // Int values
                     if (!int.TryParse(val, out int v)) continue;
-                    if (key == "headerh")    HeaderH    = v;
-                    if (key == "targetrows") TargetRows = Math.Max(1, v);
-                    if (key == "ramcostv2")  RamCostV2  = Math.Max(1, v);
-                    if (key == "ramcostv3")  RamCostV3  = Math.Max(1, v);
+                    if (key == "headerh")      HeaderH     = Math.Max(16, v);
+                    if (key == "targetrows")   TargetRows  = Math.Max(1,  v);
+                    if (key == "ramcostv2")    RamCostV2   = Math.Max(1,  v);
+                    if (key == "ramcostv3")    RamCostV3   = Math.Max(1,  v);
+                    if (key == "accenth")      AccentH     = Math.Max(1,  v);
+                    if (key == "labeloffset")  LabelOffset = Math.Max(1,  v);
                 }
                 GatekeeperPlugin.Instance?.Log.LogInfo(
                     "[GP] cfg reloaded — headerH=" + HeaderH
+                    + " accentH=" + AccentH + " labelOffset=" + LabelOffset
                     + " rows=" + TargetRows
                     + " ramV2=" + RamCostV2 + " ramV3=" + RamCostV3
                     + " ssh=" + SshStyle + " ftp=" + FtpStyle + " web=" + WebStyle);
@@ -304,7 +309,8 @@ namespace GatekeeperProtocol
         //   - skips all port/target checks so no connected node is needed
         //   - animation loops continuously instead of completing
         //   - combine with gp_drawtest to tune layout constants live
-        private readonly bool   _testMode;
+        private readonly bool   _testMode;    // --test: one cycle, then close (no port side-effects)
+        private readonly bool   _loopMode;    // --infinity: loop forever (layout tuning)
         private readonly string _crackerFamily; // "ssh" | "ftp" | "web" — selects draw style
 
         // Character matrix state
@@ -313,6 +319,7 @@ namespace GatekeeperProtocol
         private char[,]  _grid;
         private float[,] _threshold;
         private float    _drawTimer;
+        private static bool _fontLogged = false; // log real font metrics once per session
 
         // displayName    — what shows in the RAM panel (e.g. "SSHcrack_v2")
         // port           — V2: vanilla protocol ("ssh"),   V3: PF port name ("ssh_v3")
@@ -332,7 +339,8 @@ namespace GatekeeperProtocol
             _crackerFamily  = crackerFamily;
             ramCost         = tier >= 3 ? DrawTestParams.RamCostV3 : DrawTestParams.RamCostV2;
             IdentifierName  = displayName;
-            _testMode       = args != null && Array.IndexOf(args, "--test") >= 0;
+            _testMode       = args != null && Array.IndexOf(args, "--test")     >= 0;
+            _loopMode       = args != null && Array.IndexOf(args, "--infinity") >= 0;
 
             if (os.connectedComp != null)
                 targetIP = os.connectedComp.ip;
@@ -347,9 +355,10 @@ namespace GatekeeperProtocol
             {
                 initialized = true;
 
-                if (_testMode)
+                if (_testMode || _loopMode)
                 {
-                    GatekeeperPlugin.Instance?.Log.LogInfo("[GP] DRAW TEST: " + IdentifierName + " looping");
+                    GatekeeperPlugin.Instance?.Log.LogInfo(
+                        "[GP] " + IdentifierName + (_loopMode ? " --infinity loop" : " --test one-shot"));
                     return; // skip all port/target checks
                 }
 
@@ -428,10 +437,16 @@ namespace GatekeeperProtocol
 
             if (elapsed >= solveTime)
             {
-                if (_testMode)
+                if (_loopMode)
                 {
                     elapsed = 0f;
-                    _grid   = null; // regenerate grid each loop for visual variety
+                    _grid   = null; // regenerate grid each loop
+                    return;
+                }
+                if (_testMode)
+                {
+                    os.write("[GP] " + IdentifierName + " test complete.");
+                    needsRemoval = true;
                     return;
                 }
 
@@ -520,9 +535,9 @@ namespace GatekeeperProtocol
                     new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, HEADER_H),
                     new Color(18, 18, 30));
                 GuiData.spriteBatch.Draw(Utils.white,
-                    new Rectangle(Bounds.X, Bounds.Y + HEADER_H - 3, Bounds.Width, 3),
+                    new Rectangle(Bounds.X, Bounds.Y + HEADER_H - DrawTestParams.AccentH, Bounds.Width, DrawTestParams.AccentH),
                     TIER_BAR[ti]);
-                int labelY = Bounds.Y + HEADER_H - 11;
+                int labelY = Bounds.Y + HEADER_H - DrawTestParams.LabelOffset;
                 GuiData.spriteBatch.DrawString(GuiData.tinyfont, IdentifierName,
                     new Vector2(Bounds.X + 4, labelY), TIER_LABEL[ti]);
                 string tgt   = _testMode ? "TEST" : (targetIP ?? "-");
@@ -538,6 +553,13 @@ namespace GatekeeperProtocol
             var   fontMeasure = GuiData.tinyfont.MeasureString("A");
             float fontW       = fontMeasure.X;
             float fontH       = fontMeasure.Y;
+
+            // Log real font metrics once so you can calibrate charW/charH in drawtest.html.
+            if (!_fontLogged) {
+                _fontLogged = true;
+                GatekeeperPlugin.Instance?.Log.LogInfo(
+                    $"[GP] tinyfont: W={fontW:F2} H={fontH:F2}  — set charW/charH in drawtest.html to match");
+            }
 
             // Auto-scale so exactly TARGET_ROWS fit in the available height.
             // Clamped to [0.45, 1.0]: never enlarge, never go below readable.
@@ -573,6 +595,20 @@ namespace GatekeeperProtocol
                             if (r > cR || (r == cR && c >= cC))
                                 _grid[r, c] = HEX_CHARS[_rng.Next(HEX_CHARS.Length)];
                 }
+                else if (style == "waveform")
+                {
+                    // Only flicker cells behind the advancing wave front.
+                    for (int r = 0; r < rows; r++)
+                    {
+                        float rowPhase = (float)r / rows * 0.3f;
+                        for (int c = 0; c < cols; c++)
+                        {
+                            float front = pct + 0.08f * (float)Math.Sin(r * 1.5f + pct * 6.28f) - rowPhase;
+                            if ((float)c / cols > front)
+                                _grid[r, c] = HEX_CHARS[_rng.Next(HEX_CHARS.Length)];
+                        }
+                    }
+                }
                 else // matrix
                 {
                     for (int r = 0; r < rows; r++)
@@ -582,10 +618,9 @@ namespace GatekeeperProtocol
                 }
             }
 
-            if (style == "packets")
-                DrawPackets(cols, rows, pct, contentX, contentY, CHAR_W, CHAR_H, scale, cracked, uncracked);
-            else
-                DrawMatrix(cols, rows, pct, contentX, contentY, CHAR_W, CHAR_H, scale, cracked, uncracked);
+            if      (style == "packets")  DrawPackets (cols, rows, pct, contentX, contentY, CHAR_W, CHAR_H, scale, cracked, uncracked);
+            else if (style == "waveform") DrawWaveform(cols, rows, pct, contentX, contentY, CHAR_W, CHAR_H, scale, cracked, uncracked);
+            else                          DrawMatrix  (cols, rows, pct, contentX, contentY, CHAR_W, CHAR_H, scale, cracked, uncracked);
         }
 
         private void DrawMatrix(int cols, int rows, float pct,
@@ -628,6 +663,32 @@ namespace GatekeeperProtocol
                         0f, Vector2.Zero, scale,
                         Microsoft.Xna.Framework.Graphics.SpriteEffects.None, 0f);
                 }
+        }
+
+        // Sine-wave sweep: each row unlocks left-to-right with a vertical sine ripple.
+        // The wave front shimmers white as it advances across the grid.
+        private void DrawWaveform(int cols, int rows, float pct,
+                                  int cX, int cY, int cW, int cH, float scale,
+                                  Color cracked, Color uncracked)
+        {
+            for (int r = 0; r < rows; r++)
+            {
+                float rowPhase = (float)r / rows * 0.3f;
+                for (int c = 0; c < cols; c++)
+                {
+                    float colPct = (float)c / cols;
+                    float front  = pct + 0.08f * (float)Math.Sin(r * 1.5f + pct * 6.28f) - rowPhase;
+                    Color cell;
+                    if      (colPct <= front - 0.06f) cell = cracked;
+                    else if (colPct <= front)          cell = Color.Lerp(cracked, Color.White, (front - colPct) / 0.06f * 0.6f + 0.4f);
+                    else                               cell = uncracked;
+                    GuiData.spriteBatch.DrawString(
+                        GuiData.tinyfont, _grid[r, c].ToString(),
+                        new Vector2(cX + c * cW, cY + r * cH), cell,
+                        0f, Vector2.Zero, scale,
+                        Microsoft.Xna.Framework.Graphics.SpriteEffects.None, 0f);
+                }
+            }
         }
     }
 
