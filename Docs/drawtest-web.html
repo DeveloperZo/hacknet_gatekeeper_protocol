@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WebServerWorm DrawTest</title>
+<script src="gp_drawtest_config.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a0a0a; color: #ccc; font-family: monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+nav { background: #111; border-bottom: 1px solid #222; padding: 7px 16px; display: flex; align-items: center; gap: 16px; font-size: 11px; flex-shrink: 0; }
+nav a    { color: #555; text-decoration: none; padding: 2px 7px; border: 1px solid #1e1e1e; }
+nav a:hover { color: #ccc; border-color: #444; }
+nav .active { color: #fa0; border-color: #fa0; }
+#layout { flex: 1; display: flex; overflow: hidden; }
+#sidebar { width: 180px; min-width: 180px; background: #0e0e0e; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; overflow-y: auto; }
+#sidebar h2 { padding: 10px 12px 6px; color: #0f8; font-size: 11px; border-bottom: 1px solid #1a1a1a; letter-spacing: 1px; }
+.item { padding: 6px 12px 6px 18px; font-size: 11px; color: #666; cursor: pointer; border-left: 2px solid transparent; }
+.item:hover { color: #ccc; background: #141414; }
+.item.active { color: #0f8; border-left-color: #0f8; background: #0a1a0a; }
+.item .desc-hint { font-size: 9px; color: #333; display: block; margin-top: 1px; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#desc { background: #0d0d0d; border-bottom: 1px solid #1a1a1a; padding: 5px 16px; font-size: 10px; color: #445; font-style: italic; min-height: 22px; flex-shrink: 0; }
+#canvasRow { flex: 1; display: flex; align-items: center; justify-content: center; gap: 40px; background: #080808; padding: 20px; overflow: auto; }
+.module-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.module-wrap canvas { image-rendering: pixelated; }
+.mlabel { font-size: 10px; text-align: center; }
+.mlabel .tier-v2  { color: #c87800; }
+.mlabel .tier-v3  { color: #00b4dc; }
+.mlabel .meta     { color: #333; margin-top: 2px; }
+#controls { background: #111; border-top: 1px solid #1a1a1a; padding: 7px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0; }
+.ctrl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #555; }
+.ctrl label { white-space: nowrap; }
+.ctrl input[type=range] { width: 90px; accent-color: #0f8; }
+.ctrl span.val { color: #0f8; min-width: 30px; }
+.ctrl select { background: #141414; border: 1px solid #222; color: #0f8; font-family: monospace; font-size: 11px; padding: 2px 4px; }
+.sep { width: 1px; height: 16px; background: #222; }
+.tbtn { padding: 3px 9px; border: 1px solid #0f8; background: #0a1a0a; color: #0f8; font-family: monospace; font-size: 11px; cursor: pointer; }
+.tbtn:hover { background: #0f8; color: #000; }
+.tbtn.pause  { border-color: #fa0; color: #fa0; background: #1a1200; }
+.tbtn.pause:hover { background: #fa0; color: #000; }
+.tbtn.restart { border-color: #333; color: #444; background: #111; }
+.tbtn.restart:hover { color: #aaa; border-color: #666; }
+#info { background: #0e0e0e; border-top: 1px solid #1a1a1a; padding: 5px 16px; font-size: 10px; color: #333; display: flex; gap: 20px; flex-wrap: wrap; flex-shrink: 0; }
+#info b { color: #0a8; }
+#copyBox { background: #0c0c0c; border-top: 1px solid #111; padding: 5px 16px; font-size: 10px; color: #0a8; white-space: pre; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="drawtest.html">⚙ Config</a>
+  <a href="drawtest-ssh.html">SSHcrack</a>
+  <a href="drawtest-ftp.html">FTPBounce</a>
+  <span class="active">WebServerWorm</span>
+</nav>
+
+<div id="layout">
+  <div id="sidebar">
+    <h2>VARIANTS</h2>
+    <div class="item active" data-v="vanilla">
+      vanilla_clone
+      <span class="desc-hint">random threshold grid</span>
+    </div>
+    <div class="item" data-v="headers">
+      http_headers
+      <span class="desc-hint">scrolling HTTP requests</span>
+    </div>
+    <div class="item" data-v="spiral">
+      spiral_unlock
+      <span class="desc-hint">center-out spiral</span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="desc">Select a variant.</div>
+
+    <div id="canvasRow">
+      <div class="module-wrap">
+        <canvas id="c_v2" width="220" height="150"></canvas>
+        <div class="mlabel">
+          <span class="tier-v2">WebServerWorm_v2</span>  :80<br>
+          <span class="meta">tier 2 · 10s · orange · no key</span>
+        </div>
+      </div>
+      <div class="module-wrap">
+        <canvas id="c_v3" width="220" height="225"></canvas>
+        <div class="mlabel">
+          <span class="tier-v3">WebServerWorm_v3</span>  :20080  <span class="tier-v3">[KEY]</span><br>
+          <span class="meta">tier 3 · 15s · cyan · web_v3_key.dat</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="ctrl">
+        <label>Progress</label>
+        <input type="range" id="pct" min="0" max="100" value="45">
+        <span class="val" id="pctVal">45%</span>
+      </div>
+      <div class="sep"></div>
+      <div class="ctrl">
+        <label>Player RAM</label>
+        <select id="playerRam">
+          <option value="256">256 MB</option>
+          <option value="512" selected>512 MB</option>
+          <option value="1024">1024 MB</option>
+          <option value="2048">2048 MB</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Panel H</label>
+        <select id="panelFullH">
+          <option value="280">280 px</option>
+          <option value="300" selected>300 px</option>
+          <option value="340">340 px</option>
+        </select>
+      </div>
+      <div class="sep"></div>
+      <button id="playBtn"    class="tbtn">▶ PLAY</button>
+      <button id="restartBtn" class="tbtn restart">⏮ RESTART</button>
+    </div>
+
+    <div id="info">
+      <span>V2: grid <b id="grid_v2">?</b> · <b id="dim_v2">?</b> · scale <b id="scale_v2">?</b></span>
+      <span>V3: grid <b id="grid_v3">?</b> · <b id="dim_v3">?</b> · scale <b id="scale_v3">?</b></span>
+    </div>
+    <div id="copyBox"></div>
+  </div>
+</div>
+
+<script>
+const VARIANTS = {};
+
+VARIANTS.vanilla = {
+  name: 'vanilla_clone',
+  desc: 'Vanilla-style hex grid with WebServerWorm orange accent. Same logic as SSH vanilla_clone.',
+  init: (cols, rows) => gpInitGrid(cols, rows),
+  tick: (state, dt, cols, rows, pct) => gpTickFlicker(state, dt, cols, rows, pct),
+  draw: (ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) =>
+    gpDrawMatrix(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent),
+};
+
+VARIANTS.headers = {
+  name: 'http_headers',
+  desc: 'Scrolling fake HTTP request/response headers. Each header "sends" as progress advances.',
+  init(cols, rows) {
+    return {
+      timer: 0, scrollY: 0,
+      headers: [
+        'GET / HTTP/1.1', 'Host: target.node', 'X-GP-Crack: v2',
+        'X-Tier: 2', 'X-Port: 80', 'Exploit: overflow',
+        'Payload: 0x' + (Math.random() * 0xFFFF | 0).toString(16).toUpperCase(),
+        'Cookie: sess=inject', 'Pragma: no-cache', 'Connection: exploit',
+        '---', 'HTTP/1.1 200 OK', 'Server: exploited', 'Port: OPEN',
+      ],
+    };
+  },
+  tick(state, dt, cols, rows, pct) {
+    state.scrollY += dt * 14 * pct;
+  },
+  draw(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) {
+    const { headers, scrollY } = state;
+    const total = headers.length;
+    const crackedLines = (pct * total) | 0;
+    ctx.font = `${cH - 1}px monospace`;
+    for (let i = 0; i < rows; i++) {
+      const idx  = (((scrollY / cH) | 0) + i) % total;
+      const line = headers[idx] || '';
+      const cur  = idx === crackedLines;
+      ctx.fillStyle = cur        ? 'rgba(255,255,180,0.9)'
+                    : idx < crackedLines ? gpToRgb(accent, 0.9)
+                    :               gpToRgb(GP_UNCRACKED, 0.6);
+      ctx.fillText(line.substring(0, cols), cX, cY + i * cH + cH - 2);
+    }
+  },
+};
+
+VARIANTS.spiral = {
+  name: 'spiral_unlock',
+  desc: 'Chars unlock in a spiral from the outside in (reversed to center-out). High visual impact.',
+  init(cols, rows) {
+    const s = gpInitGrid(cols, rows);
+    // Build outside-in spiral, then reverse for center-out
+    const order = [];
+    let top = 0, bottom = rows - 1, left = 0, right = cols - 1;
+    while (top <= bottom && left <= right) {
+      for (let c = left;   c <= right;  c++) order.push([top, c]);    top++;
+      for (let r = top;    r <= bottom; r++) order.push([r, right]);  right--;
+      if (top <= bottom)  { for (let c = right; c >= left;   c--) order.push([bottom, c]); bottom--; }
+      if (left <= right)  { for (let r = bottom; r >= top;   r--) order.push([r, left]);   left++;   }
+    }
+    order.reverse();
+    s.spiralOrder = order;
+    return s;
+  },
+  tick(state, dt, cols, rows, pct) {
+    state.timer += dt;
+    if (state.timer >= 0.08) {
+      state.timer = 0;
+      const crackedCount = (pct * state.spiralOrder.length) | 0;
+      state.spiralOrder.slice(crackedCount).forEach(([r, c]) => {
+        state.grid[r][c] = gpRndHex();
+      });
+    }
+  },
+  draw(ctx, state, cols, rows, pct, cX, cY, cW, cH, accent) {
+    const crackedCount = (pct * state.spiralOrder.length) | 0;
+    const crackedSet   = new Set();
+    for (let i = 0; i < crackedCount; i++) {
+      const [r, c] = state.spiralOrder[i];
+      crackedSet.add(r * 1000 + c);
+    }
+    ctx.font = `${cH - 1}px monospace`;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        ctx.fillStyle = crackedSet.has(r * 1000 + c) ? gpToRgb(accent) : gpToRgb(GP_UNCRACKED);
+        ctx.fillText(state.grid[r][c], cX + c * cW, cY + r * cH + cH - 2);
+      }
+  },
+};
+
+// ---- engine (identical structure to drawtest-ssh.html) ----------------------
+const PANEL_W  = 220;
+const C_V2     = GP_CRACKERS.web_v2;
+const C_V3     = GP_CRACKERS.web_v3;
+
+const canvasV2 = document.getElementById('c_v2');
+const canvasV3 = document.getElementById('c_v3');
+const ctxV2    = canvasV2.getContext('2d');
+const ctxV3    = canvasV3.getContext('2d');
+
+let cfg     = gpLoadConfig();
+let activeV = 'vanilla';
+let stateV2 = {}, stateV3 = {};
+let playing = false;
+let pctV    = 0.45;
+let lastT   = null;
+
+function getPlayerRam()  { return parseInt(document.getElementById('playerRam').value); }
+function getPanelFullH() { return parseInt(document.getElementById('panelFullH').value); }
+
+function resizeCanvases() {
+  canvasV2.height = gpModuleH(cfg, 2, getPlayerRam(), getPanelFullH());
+  canvasV3.height = gpModuleH(cfg, 3, getPlayerRam(), getPanelFullH());
+}
+
+function reinit() {
+  resizeCanvases();
+  const [c2, r2] = gpGetColsRows(PANEL_W, canvasV2.height, cfg);
+  const [c3, r3] = gpGetColsRows(PANEL_W, canvasV3.height, cfg);
+  const v = VARIANTS[activeV];
+  stateV2 = r2 > 0 ? v.init(c2, r2) : {};
+  stateV3 = r3 > 0 ? v.init(c3, r3) : {};
+  updateInfo();
+}
+
+function updateInfo() {
+  const [c2, r2, s2] = gpGetColsRows(PANEL_W, canvasV2.height, cfg);
+  const [c3, r3, s3] = gpGetColsRows(PANEL_W, canvasV3.height, cfg);
+  document.getElementById('grid_v2').textContent  = `${c2}×${r2}`;
+  document.getElementById('dim_v2').textContent   = `${PANEL_W}×${canvasV2.height}px`;
+  document.getElementById('scale_v2').textContent = s2.toFixed(2) + 'x';
+  document.getElementById('grid_v3').textContent  = `${c3}×${r3}`;
+  document.getElementById('dim_v3').textContent   = `${PANEL_W}×${canvasV3.height}px`;
+  document.getElementById('scale_v3').textContent = s3.toFixed(2) + 'x';
+  document.getElementById('copyBox').textContent  =
+    `# gp_drawtest.cfg  (${C_V2.label} ${C_V2.solveTime}s | ${C_V3.label} ${C_V3.solveTime}s)\n` +
+    `headerH    = ${cfg.headerH}\n` +
+    `targetRows = ${cfg.targetRows}\n` +
+    `ramCostV2  = ${cfg.ramCostV2}\n` +
+    `ramCostV3  = ${cfg.ramCostV3}`;
+}
+
+function renderCanvas(canvas, ctx, cracker, state, pct) {
+  const h = canvas.height;
+  if (h <= 0) return;
+  const [cols, rows, , CHAR_W, CHAR_H] = gpGetColsRows(PANEL_W, h, cfg);
+  const accent = GP_TIER_CRACKED[cracker.tier];
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(0, 0, PANEL_W, h);
+  if (rows > 0) VARIANTS[activeV].draw(ctx, state, cols, rows, pct, 4, cfg.headerH, CHAR_W, CHAR_H, accent);
+  gpDrawHeader(ctx, cracker, cfg, PANEL_W);
+  gpDrawOutline(ctx, cracker.tier, PANEL_W, h);
+  if (!playing && pct > 0 && pct < 1) {
+    ctx.fillStyle = 'rgba(80,0,0,0.15)';
+    ctx.fillRect(0, cfg.headerH, PANEL_W, h - cfg.headerH);
+    ctx.font = '9px monospace';
+    ctx.fillStyle = 'rgba(255,60,60,0.5)';
+    ctx.fillText('KILLED', PANEL_W - 42, h - 5);
+  }
+}
+
+function frame(ts) {
+  if (!lastT) lastT = ts;
+  const dt = Math.min((ts - lastT) / 1000, 0.1);
+  lastT = ts;
+  if (playing) {
+    pctV = Math.min(pctV + dt / C_V2.solveTime, 1);
+    document.getElementById('pct').value = Math.round(pctV * 100);
+    document.getElementById('pctVal').textContent = Math.round(pctV * 100) + '%';
+    if (pctV >= 1) setPlaying(false);
+  }
+  const [c2, r2] = gpGetColsRows(PANEL_W, canvasV2.height, cfg);
+  const [c3, r3] = gpGetColsRows(PANEL_W, canvasV3.height, cfg);
+  const v = VARIANTS[activeV];
+  if (r2 > 0) v.tick(stateV2, dt, c2, r2, pctV);
+  if (r3 > 0) v.tick(stateV3, dt, c3, r3, pctV);
+  renderCanvas(canvasV2, ctxV2, C_V2, stateV2, pctV);
+  renderCanvas(canvasV3, ctxV3, C_V3, stateV3, pctV);
+  requestAnimationFrame(frame);
+}
+
+function setPlaying(v) {
+  playing = v;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = v ? '⏸ PAUSE' : '▶ PLAY';
+  btn.classList.toggle('pause', v);
+}
+
+document.querySelectorAll('.item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.item').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    activeV = el.dataset.v;
+    document.getElementById('desc').textContent = VARIANTS[activeV].desc;
+    cfg.webStyle = activeV === 'vanilla' ? 'matrix' : activeV;
+    gpSaveConfig(cfg);
+    reinit();
+  });
+});
+
+document.getElementById('pct').addEventListener('input', function() {
+  pctV = parseInt(this.value) / 100;
+  document.getElementById('pctVal').textContent = this.value + '%';
+});
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  if (playing) { setPlaying(false); }
+  else {
+    if (pctV >= 1) { pctV = 0; document.getElementById('pct').value = 0; document.getElementById('pctVal').textContent = '0%'; }
+    setPlaying(true);
+  }
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  pctV = 0; document.getElementById('pct').value = 0; document.getElementById('pctVal').textContent = '0%';
+  reinit(); setPlaying(true);
+});
+
+['playerRam','panelFullH'].forEach(id => { document.getElementById(id).addEventListener('change', reinit); });
+window.addEventListener('storage', e => { if (e.key === GP_CONFIG_KEY) { cfg = gpLoadConfig(); reinit(); } });
+
+document.getElementById('desc').textContent = VARIANTS[activeV].desc;
+reinit();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
