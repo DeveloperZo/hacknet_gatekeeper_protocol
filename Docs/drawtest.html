@@ -2,608 +2,845 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>GP DrawTest — Config Hub</title>
-<script src="gp_drawtest_config.js"></script>
+<title>GP DrawItems Preview</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #0a0a0a; color: #ccc; font-family: monospace; min-height: 100vh; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0a; color: #ccc; font-family: monospace; display: flex; height: 100vh; overflow: hidden; }
 
-nav {
-  background: #111; border-bottom: 1px solid #222; padding: 8px 20px;
-  display: flex; align-items: center; gap: 20px; font-size: 12px;
-}
-nav a    { color: #0f8; text-decoration: none; padding: 3px 8px; border: 1px solid #1a3a1a; }
-nav a:hover { background: #0f8; color: #000; }
-nav .active { color: #fa0; border-bottom: 2px solid #fa0; padding-bottom: 2px; }
+  #sidebar {
+    width: 240px; min-width: 240px; background: #111; border-right: 1px solid #222;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  #sidebar h2 { padding: 12px 12px 8px; color: #0f8; font-size: 12px; border-bottom: 1px solid #1e1e1e; letter-spacing: 1px; }
+  .folder { padding: 6px 12px 2px; color: #666; font-size: 11px; letter-spacing: 1px; cursor: default; user-select: none; }
+  .folder span { color: #444; margin-right: 4px; }
+  .folder.mg { color: #fa8; }
+  .item { padding: 5px 12px 5px 24px; font-size: 11px; color: #888; cursor: pointer; border-left: 2px solid transparent; transition: all 0.1s; }
+  .item:hover { color: #ccc; background: #161616; }
+  .item.active { color: #0f8; border-left-color: #0f8; background: #0a1a0a; }
+  .item.mg { color: #a86; }
+  .item.mg:hover { color: #fc8; background: #1a1400; }
+  .item.mg.active { color: #fc8; border-left-color: #fa0; background: #120e00; }
 
-#page { max-width: 680px; margin: 40px auto; padding: 0 20px; }
-h1 { color: #0f8; font-size: 13px; letter-spacing: 2px; margin-bottom: 6px; }
-.subtitle { color: #444; font-size: 11px; margin-bottom: 28px; }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #toolbar { background: #111; border-bottom: 1px solid #222; padding: 8px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  #toolbar h3 { color: #0f8; font-size: 12px; white-space: nowrap; }
+  #toolbar h3.mg { color: #fa0; }
+  .ctrl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
+  .ctrl label { white-space: nowrap; }
+  .ctrl input[type=range] { width: 80px; accent-color: #0f8; }
+  .ctrl span { color: #0f8; min-width: 28px; }
+  #playBtn { padding: 4px 10px; background: #1a2a1a; border: 1px solid #0f8; color: #0f8; font-family: monospace; font-size: 11px; cursor: pointer; white-space: nowrap; }
+  #playBtn:hover { background: #0f8; color: #000; }
+  #playBtn.mg { background: #1a1200; border-color: #fa0; color: #fa0; }
+  #playBtn.mg:hover { background: #fa0; color: #000; }
+  #scaleCtrl { display: none; }
+  #scaleCtrl.visible { display: flex; }
 
-section { margin-bottom: 28px; }
-section h2 { font-size: 11px; color: #555; letter-spacing: 1px; border-bottom: 1px solid #1a1a1a; padding-bottom: 5px; margin-bottom: 14px; }
+  #canvasWrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #0a0a0a; position: relative; }
+  canvas { image-rendering: pixelated; }
 
-/* config grid */
-.cfg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
-.cfg-row  { display: flex; flex-direction: column; gap: 4px; }
-.cfg-row label { font-size: 10px; color: #555; letter-spacing: 1px; }
-.cfg-row .ctrl-line { display: flex; align-items: center; gap: 8px; }
-.cfg-row input[type=range]  { flex: 1; accent-color: #0f8; }
-.cfg-row input[type=number] { width: 60px; background: #141414; border: 1px solid #2a2a2a; color: #0f8; font-family: monospace; font-size: 11px; padding: 3px 5px; }
-.cfg-row .val { color: #0f8; min-width: 36px; font-size: 11px; }
-.cfg-row .derived { color: #444; font-size: 10px; margin-top: 2px; }
+  #hintBadge { position: absolute; bottom: 10px; right: 12px; font-size: 10px; color: #555; display: none; text-align: right; line-height: 1.6; background: rgba(0,0,0,0.6); padding: 4px 8px; }
+  #hintBadge.visible { display: block; }
 
-/* module height table */
-.h-table { border-collapse: collapse; font-size: 11px; width: 100%; }
-.h-table th { text-align: left; color: #444; font-weight: normal; padding: 3px 8px 3px 0; }
-.h-table td { color: #0f8; padding: 3px 8px 3px 0; }
-.h-table .dim { color: #fa0; }
-
-/* nav cards */
-.cards { display: flex; gap: 14px; }
-.card {
-  flex: 1; padding: 16px; background: #0d0d0d; border: 1px solid #1e1e1e;
-  text-decoration: none; color: inherit; transition: border-color 0.15s;
-}
-.card:hover { border-color: #0f8; }
-.card h3 { color: #0f8; font-size: 12px; margin-bottom: 4px; }
-.card .v2  { color: #c87800; font-size: 10px; }
-.card .v3  { color: #00b4dc; font-size: 10px; }
-.card .ports { color: #444; font-size: 10px; margin-top: 6px; }
-
-/* style grid */
-.style-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-.style-row  { display: flex; flex-direction: column; gap: 4px; }
-.style-row label { font-size: 10px; color: #555; letter-spacing: 1px; }
-.style-row select {
-  background: #141414; border: 1px solid #2a2a2a; color: #0f8;
-  font-family: monospace; font-size: 11px; padding: 4px 6px;
-}
-.style-row .hint { font-size: 9px; color: #333; margin-top: 2px; }
-
-/* file link */
-#fileBar {
-  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
-  background: #0d0d0d; border: 1px solid #1a1a1a; margin-bottom: 10px;
-}
-.fbtn {
-  padding: 3px 10px; border: 1px solid #333; background: #111;
-  color: #666; font-family: monospace; font-size: 11px; cursor: pointer; white-space: nowrap;
-}
-.fbtn:hover { border-color: #0f8; color: #0f8; }
-.fbtn.linked { border-color: #0f8; color: #0f8; background: #0a1a0a; }
-#fileStatus { font-size: 10px; color: #444; flex: 1; }
-#saveFlash  { font-size: 10px; color: #0f8; opacity: 0; transition: opacity 0.3s; }
-
-/* copy box */
-#copyBox {
-  background: #0d0d0d; border: 1px solid #1a2a1a; padding: 10px 14px;
-  font-size: 11px; color: #0a8; white-space: pre; line-height: 1.6;
-}
-.copy-btn {
-  margin-top: 8px; padding: 3px 10px; background: #1a2a1a; border: 1px solid #0f8;
-  color: #0f8; font-family: monospace; font-size: 11px; cursor: pointer;
-}
-.copy-btn:hover { background: #0f8; color: #000; }
-.copy-note { font-size: 10px; color: #444; margin-top: 6px; }
-
-/* live preview */
-.prev-controls {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
-}
-.prev-canvases { display: flex; gap: 16px; overflow-x: auto; }
-.prev-canvases canvas { display: block; image-rendering: pixelated; }
-.clabel { font-size: 9px; margin-bottom: 3px; letter-spacing: 0.5px; }
-.v2lbl  { color: #c87800; }
-.v3lbl  { color: #00b4dc; }
-.pbtn {
-  padding: 2px 10px; background: #111; border: 1px solid #333;
-  color: #666; font-family: monospace; font-size: 12px; cursor: pointer;
-}
-.pbtn:hover        { border-color: #0f8; color: #0f8; }
-.pbtn.active       { border-color: #0f8; color: #0f8; background: #0a1a0a; }
-#prevFamily {
-  background: #141414; border: 1px solid #2a2a2a; color: #0f8;
-  font-family: monospace; font-size: 11px; padding: 3px 6px;
-}
-#prevPct { flex: 1; min-width: 80px; accent-color: #0f8; }
-#prevPctVal { color: #0f8; font-size: 11px; min-width: 36px; }
+  #info { background: #111; border-top: 1px solid #222; padding: 6px 16px; font-size: 10px; color: #444; display: flex; gap: 24px; }
+  #info span { color: #555; }
+  #info b { color: #0a8; }
+  #desc { background: #0d0d0d; border-bottom: 1px solid #1a1a1a; padding: 6px 16px; font-size: 10px; color: #556; font-style: italic; min-height: 24px; }
+  #copyBox { background: #111; border-top: 1px solid #1a1a1a; padding: 6px 16px; font-size: 10px; color: #0a8; white-space: pre; min-height: 22px; }
+  #copyBox.mg { color: #fa0; background: #0e0c00; }
 </style>
 </head>
 <body>
 
-<nav>
-  <span class="active">⚙ Config</span>
-  <a href="drawtest-ssh.html">SSHcrack</a>
-  <a href="drawtest-ftp.html">FTPBounce</a>
-  <a href="drawtest-web.html">WebServerWorm</a>
-</nav>
+<div id="sidebar">
+  <h2>📁 DRAW ITEMS</h2>
 
-<div id="page">
-  <h1>GP DRAWTEST — CONFIG HUB</h1>
-  <p class="subtitle">Tweak values here. Open a cracker tab — it live-updates via localStorage.</p>
+  <div class="folder"><span>▾</span>SSHcrack_v2</div>
+  <div class="item active" data-item="ssh_vanilla">vanilla_clone.js</div>
+  <div class="item" data-item="ssh_column">column_sweep.js</div>
+  <div class="item" data-item="ssh_waveform">waveform.js</div>
 
-  <!-- ── CONFIG ── -->
-  <section>
-    <h2>DRAW PARAMS  (mirrors DrawTestParams in GatekeeperProtocol.cs)</h2>
-    <div class="cfg-grid">
-      <div class="cfg-row">
-        <label>HEADER H</label>
-        <div class="ctrl-line">
-          <input type="range" id="headerH" min="16" max="48" value="28">
-          <span class="val" id="headerHVal">28</span>
-        </div>
-        <div class="derived">px below module top where matrix starts</div>
-      </div>
-      <div class="cfg-row">
-        <label>TARGET ROWS</label>
-        <div class="ctrl-line">
-          <input type="range" id="targetRows" min="1" max="12" value="6">
-          <span class="val" id="targetRowsVal">6</span>
-        </div>
-        <div class="derived">rows the animation always tries to show</div>
-      </div>
-      <div class="cfg-row">
-        <label>RAM COST V2</label>
-        <div class="ctrl-line">
-          <input type="number" id="ramCostV2" min="1" max="512" value="256">
-        </div>
-        <div class="derived">SSH/FTP/Web V2 ramCost</div>
-      </div>
-      <div class="cfg-row">
-        <label>RAM COST V3</label>
-        <div class="ctrl-line">
-          <input type="number" id="ramCostV3" min="1" max="512" value="384">
-        </div>
-        <div class="derived">SSH/FTP/Web V3 ramCost</div>
-      </div>
-      <div class="cfg-row">
-        <label>ACCENT H</label>
-        <div class="ctrl-line">
-          <input type="range" id="accentH" min="1" max="8" value="3">
-          <span class="val" id="accentHVal">3</span>
-        </div>
-        <div class="derived">tier-color bar height at bottom of header (px)</div>
-      </div>
-      <div class="cfg-row">
-        <label>LABEL OFFSET</label>
-        <div class="ctrl-line">
-          <input type="range" id="labelOffset" min="10" max="80" value="40">
-          <span class="val" id="labelOffsetVal">40</span>
-        </div>
-        <div class="derived">header text baseline = headerH − labelOffset</div>
-      </div>
-      <div class="cfg-row">
-        <label>CHAR W  <span style="color:#333">(approx tinyfont)</span></label>
-        <div class="ctrl-line">
-          <input type="range" id="charW" min="4" max="14" value="6">
-          <span class="val" id="charWVal">6</span>
-        </div>
-      </div>
-      <div class="cfg-row">
-        <label>CHAR H  <span style="color:#333">(approx tinyfont)</span></label>
-        <div class="ctrl-line">
-          <input type="range" id="charH" min="6" max="18" value="11">
-          <span class="val" id="charHVal">11</span>
-        </div>
-      </div>
-    </div>
-  </section>
+  <div class="folder"><span>▾</span>FTPBounce_v2</div>
+  <div class="item" data-item="ftp_vanilla">vanilla_clone.js</div>
+  <div class="item" data-item="ftp_packets">packet_rows.js</div>
+  <div class="item" data-item="ftp_stream">bounce_stream.js</div>
 
-  <!-- ── LIVE PREVIEW ── -->
-  <section>
-    <h2>LIVE PREVIEW  <span style="color:#333;font-size:9px;font-weight:normal">— updates on every slider change</span></h2>
-    <div class="prev-controls">
-      <select id="prevFamily">
-        <option value="ssh">SSHcrack</option>
-        <option value="ftp">FTPBounce</option>
-        <option value="web">WebServerWorm</option>
-      </select>
-      <span style="color:#444;font-size:10px">progress</span>
-      <input type="range" id="prevPct" min="0" max="100" value="45">
-      <span id="prevPctVal">45%</span>
-      <button class="pbtn" id="prevPlay">▶</button>
-      <button class="pbtn" id="prevRestart">⟳</button>
-    </div>
-    <div class="prev-canvases">
-      <div>
-        <div class="clabel v2lbl" id="prevLabelV2">SSHcrack_v2 · :22 · 10s · no key</div>
-        <canvas id="prevV2" width="220" height="150"></canvas>
-      </div>
-      <div>
-        <div class="clabel v3lbl" id="prevLabelV3">SSHcrack_v3 · :20022 · 15s · [KEY]</div>
-        <canvas id="prevV3" width="220" height="225"></canvas>
-      </div>
-    </div>
-  </section>
+  <div class="folder"><span>▾</span>WebServerWorm_v2</div>
+  <div class="item" data-item="web_vanilla">vanilla_clone.js</div>
+  <div class="item" data-item="web_headers">http_headers.js</div>
+  <div class="item" data-item="web_spiral">spiral_unlock.js</div>
 
-  <!-- ── MODULE HEIGHT PREVIEW ── -->
-  <section>
-    <h2>ESTIMATED MODULE HEIGHT</h2>
-    <div style="display:flex;gap:20px;align-items:flex-start;margin-bottom:12px">
-      <div class="cfg-row" style="min-width:160px">
-        <label>PLAYER RAM</label>
-        <div class="ctrl-line">
-          <select id="playerRam" style="background:#141414;border:1px solid #2a2a2a;color:#0f8;font-family:monospace;font-size:11px;padding:3px 5px">
-            <option value="256">256 MB</option>
-            <option value="512" selected>512 MB</option>
-            <option value="1024">1024 MB</option>
-            <option value="2048">2048 MB</option>
-          </select>
-        </div>
-      </div>
-      <div class="cfg-row" style="min-width:160px">
-        <label>PANEL FULL H</label>
-        <div class="ctrl-line">
-          <select id="panelFullH" style="background:#141414;border:1px solid #2a2a2a;color:#0f8;font-family:monospace;font-size:11px;padding:3px 5px">
-            <option value="280">280 px (1080p)</option>
-            <option value="300" selected>300 px (approx)</option>
-            <option value="340">340 px (tall)</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <table class="h-table">
-      <thead><tr><th>Exe</th><th>Tier</th><th>ramCost</th><th>Module H</th><th>Content H</th><th>Scale</th><th>Rows</th></tr></thead>
-      <tbody id="heightTable"></tbody>
-    </table>
-  </section>
+  <div class="folder mg"><span>▾</span>MINIGAMES  [SPACE only]</div>
+  <div class="item mg" data-item="mg_keymatch">ssh_pattern_match.mg</div>
+  <div class="item mg" data-item="mg_signalsync">ssh_signal_sync.mg</div>
+  <div class="item mg" data-item="mg_packetsort">ftp_packet_sort.mg</div>
+  <div class="item mg" data-item="mg_abacus">ftp_relay_abacus.mg</div>
+  <div class="item mg" data-item="mg_injection">web_inject_timing.mg</div>
+</div>
 
-  <!-- ── OPEN CRACKER ── -->
-  <section>
-    <h2>OPEN CRACKER PREVIEW</h2>
-    <div class="cards">
-      <a class="card" href="drawtest-ssh.html">
-        <h3>SSHcrack →</h3>
-        <div class="v2">V2 — port 22 — 10s — orange</div>
-        <div class="v3">V3 — port 20022 — 15s — cyan [KEY]</div>
-        <div class="ports">Variants: vanilla_clone · column_sweep · waveform</div>
-      </a>
-      <a class="card" href="drawtest-ftp.html">
-        <h3>FTPBounce →</h3>
-        <div class="v2">V2 — port 21 — 10s — orange</div>
-        <div class="v3">V3 — port 20021 — 15s — cyan [KEY]</div>
-        <div class="ports">Variants: vanilla_clone · packet_rows · bounce_stream</div>
-      </a>
-      <a class="card" href="drawtest-web.html">
-        <h3>WebServerWorm →</h3>
-        <div class="v2">V2 — port 80 — 10s — orange</div>
-        <div class="v3">V3 — port 20080 — 15s — cyan [KEY]</div>
-        <div class="ports">Variants: vanilla_clone · http_headers · spiral_unlock</div>
-      </a>
+<div id="main">
+  <div id="toolbar">
+    <h3 id="itemTitle">SSHcrack_v2 / vanilla_clone</h3>
+    <div class="ctrl" id="pctCtrl">
+      <label>Progress</label>
+      <input type="range" id="pctSlider" min="0" max="100" value="45">
+      <span id="pctVal">45%</span>
     </div>
-  </section>
-
-  <!-- ── DRAW STYLES ── -->
-  <section>
-    <h2>DRAW STYLE PER EXE  (sshStyle / ftpStyle / webStyle in cfg)</h2>
-    <div class="style-grid">
-      <div class="style-row">
-        <label>SSH STYLE</label>
-        <select id="sshStyle">
-          <option value="matrix">matrix</option>
-          <option value="packets">packets</option>
-          <option value="waveform">waveform</option>
-        </select>
-        <div class="hint">SSHcrack_v2 / v3</div>
-      </div>
-      <div class="style-row">
-        <label>FTP STYLE</label>
-        <select id="ftpStyle">
-          <option value="matrix">matrix</option>
-          <option value="packets" selected>packets</option>
-        </select>
-        <div class="hint">FTPBounce_v2 / v3</div>
-      </div>
-      <div class="style-row">
-        <label>WEB STYLE</label>
-        <select id="webStyle">
-          <option value="matrix">matrix</option>
-          <option value="packets">packets</option>
-        </select>
-        <div class="hint">WebServerWorm_v2 / v3</div>
-      </div>
-    </div>
-    <div class="derived" style="margin-top:8px">
-      <b>matrix</b> — random hex grid, threshold-based (vanilla SSHcrack feel)<br>
-      <b>packets</b> — rows complete top→bottom, columns left→right (FTP data transfer feel)
-    </div>
-  </section>
-
-  <!-- ── SAVE TO FILE ── -->
-  <section>
-    <h2>SAVE TO  BepInEx/plugins/gp_drawtest.cfg</h2>
-    <div id="fileBar">
-      <button class="fbtn" id="linkBtn">⌂ Link to cfg file…</button>
-      <span id="fileStatus">No file linked. Click to pick gp_drawtest.cfg — then every change auto-saves.</span>
-      <span id="saveFlash">✓ saved</span>
-    </div>
-    <div id="copyBox"></div>
-    <button class="copy-btn" id="copyBtn">⎘ COPY</button>
-    <div class="copy-note">
-      Link the file once — then every slider/dropdown change writes directly to disk and Hacknet reloads within 1 second.<br>
-      If your browser doesn't support File System Access, use ⎘ COPY and paste manually.
-    </div>
-  </section>
+    <div class="ctrl"><label>HeaderH</label><input type="range" id="headerH" min="16" max="48" value="28"><span id="headerHVal">28</span></div>
+    <div class="ctrl"><label>CharW</label><input type="range" id="charW" min="4" max="14" value="6"><span id="charWVal">6</span></div>
+    <div class="ctrl"><label>CharH</label><input type="range" id="charH" min="6" max="18" value="11"><span id="charHVal">11</span></div>
+    <div class="ctrl" id="scaleCtrl"><label>Scale</label><input type="range" id="scaleSlider" min="1" max="4" value="2" step="0.5"><span id="scaleVal">2×</span></div>
+    <button id="playBtn">▶ PLAY</button>
+  </div>
+  <div id="desc">Select an item from the sidebar to preview.</div>
+  <div id="canvasWrap">
+    <canvas id="c" width="220" height="130"></canvas>
+    <div id="hintBadge"></div>
+  </div>
+  <div id="copyBox">// select a draw item</div>
+  <div id="info">
+    <span>grid <b id="gridInfo">?×?</b></span>
+    <span>panel <b>220×130</b></span>
+    <span>font <b id="fontInfo">6×11</b></span>
+    <span>variant <b id="variantName">-</b></span>
+    <span id="scoreInfo" style="display:none">score <b id="scoreVal" style="color:#fa0">0%</b></span>
+  </div>
 </div>
 
 <script>
-let cfg = gpLoadConfig();
-let fileHandle = null;
-let saveFlashTimer = null;
+// ─────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────
+const PANEL_W = 220, PANEL_H = 130;
+const HEX = '0123456789ABCDEF'.split('');
+const COLORS = {
+  ssh: { r:200, g:120, b:0,   label:'SSHcrack_v2',      port:'10022' },
+  ftp: { r:0,   g:140, b:220, label:'FTPBounce_v2',     port:'10021' },
+  web: { r:160, g:0,   b:220, label:'WebServerWorm_v2', port:'10080' },
+};
+const UNCRK = { r:180, g:0, b:0 };
+const rgb  = (c, a=1) => `rgba(${c.r},${c.g},${c.b},${a})`;
+const rndI = n => Math.floor(Math.random()*n);
+const rndH = () => HEX[rndI(16)];
+const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
 
-// ---- File System Access API -----------------------------------------------
-async function linkFile() {
-  try {
-    [fileHandle] = await window.showOpenFilePicker({
-      types: [{ description: 'Config', accept: { 'text/plain': ['.cfg'] } }],
-      multiple: false,
-    });
-    document.getElementById('fileStatus').textContent =
-      '✓ Linked: ' + fileHandle.name + ' — every change auto-saves';
-    document.getElementById('linkBtn').textContent   = '✓ Linked';
-    document.getElementById('linkBtn').classList.add('linked');
-    await writeCfgFile(); // write current values immediately
-  } catch (e) {
-    if (e.name !== 'AbortError')
-      document.getElementById('fileStatus').textContent = 'Error: ' + e.message;
+// ─────────────────────────────────────────────
+//  SHARED STATE
+// ─────────────────────────────────────────────
+let params = { pct:0.45, headerH:28, charW:6, charH:11 };
+let playing = false, playPct = 0, raf = null, lastT = null;
+let flickerT = 0, rendererState = {}, displayScale = 1;
+
+// ─────────────────────────────────────────────
+//  DRAW HELPERS
+// ─────────────────────────────────────────────
+function initGrid(cols,rows){
+  const grid=[],thr=[];
+  for(let r=0;r<rows;r++){grid.push([]);thr.push([]);for(let c=0;c<cols;c++){grid[r].push(rndH());thr[r].push(Math.random());}}
+  return{grid,thr};
+}
+function drawHeader(ctx,label,port,ac){
+  const h=params.headerH;
+  ctx.fillStyle='#12121e';ctx.fillRect(0,0,PANEL_W,h);
+  ctx.fillStyle=rgb(ac,0.7);ctx.fillRect(0,h-2,PANEL_W,2);
+  ctx.font=`${Math.max(9,params.charH-2)}px monospace`;
+  ctx.fillStyle='#999';ctx.fillText(label,6,h-7);
+  ctx.fillStyle=rgb(ac);ctx.fillText(port,PANEL_W-50,h-7);
+}
+function drawOutline(ctx,ac){ctx.strokeStyle=rgb(ac,0.4);ctx.lineWidth=1;ctx.strokeRect(0.5,0.5,PANEL_W-1,PANEL_H-1);}
+function clearContent(ctx){ctx.fillStyle='#080808';ctx.fillRect(0,params.headerH,PANEL_W,PANEL_H-params.headerH);}
+
+// ─────────────────────────────────────────────
+//  DRAW ITEMS
+// ─────────────────────────────────────────────
+const ITEMS = {};
+
+// SSH
+ITEMS['ssh_vanilla']={exe:'ssh',name:'vanilla_clone',desc:'Faithful recreation of vanilla SSHcrack.exe — random threshold grid, red→orange flip.',
+  init(c,r){rendererState=initGrid(c,r);},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,thr}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)if(thr[i][j]>params.pct)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid,thr}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){ctx.fillStyle=thr[i][j]<=params.pct?rgb(ac):rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+ITEMS['ssh_column']={exe:'ssh',name:'column_sweep',desc:'Columns unlock left to right. White leading-edge flash.',
+  init(c,r){rendererState=initGrid(c,r);},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid}=rendererState;const cc=Math.floor(params.pct*c);for(let i=0;i<r;i++)for(let j=cc;j<c;j++)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;const cc=Math.floor(params.pct*c);ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){ctx.fillStyle=j<cc?rgb(ac):j===cc?'rgba(255,255,255,0.9)':rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+ITEMS['ssh_waveform']={exe:'ssh',name:'waveform',desc:'Sine wave shimmer sweeps through uncracked chars.',
+  init(c,r){rendererState=initGrid(c,r);rendererState.wave=0;},
+  tick(dt,c,r){rendererState.wave+=dt*3;flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,thr}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)if(thr[i][j]>params.pct)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid,thr,wave}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){const base=thr[i][j]<=params.pct,sh=Math.sin(wave+j*0.6+i*0.3)>0.7&&!base;ctx.fillStyle=base?rgb(ac):sh?'rgba(220,180,80,0.8)':rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+
+// FTP
+ITEMS['ftp_vanilla']={exe:'ftp',name:'vanilla_clone',desc:'Vanilla hex grid with FTP blue accent.',
+  init(c,r){rendererState=initGrid(c,r);},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,thr}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)if(thr[i][j]>params.pct)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid,thr}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){ctx.fillStyle=thr[i][j]<=params.pct?rgb(ac):rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+ITEMS['ftp_packets']={exe:'ftp',name:'packet_rows',desc:'Each row is a data packet; rows complete sequentially.',
+  init(c,r){rendererState=initGrid(c,r);},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;const cr=Math.floor(params.pct*r);for(let i=0;i<r;i++){const cc=i<cr?c:i===cr?Math.floor((params.pct*r*c)%c):0;for(let j=0;j<c;j++){ctx.fillStyle=j<cc?rgb(ac):(j===cc&&i===cr)?'rgba(255,255,255,0.9)':rgb(UNCRK,0.7);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}}
+};
+ITEMS['ftp_stream']={exe:'ftp',name:'bounce_stream',desc:'Characters stream in; boundary glow pulses at crack front.',
+  init(c,r){rendererState=initGrid(c,r);rendererState.so=0;},
+  tick(dt,c,r){rendererState.so=(rendererState.so+dt*8)%1;flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,thr}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)if(thr[i][j]>params.pct)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid,thr,so}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){const cr=thr[i][j]<=params.pct,ne=Math.abs(thr[i][j]-params.pct)<0.08,sp=Math.sin((j/c+so)*Math.PI*4)*0.5+0.5;ctx.fillStyle=cr?rgb(ac,0.7+0.3*sp):ne?'rgba(100,180,255,0.9)':rgb(UNCRK,0.5+0.5*(1-sp*0.3));ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+
+// WEB
+ITEMS['web_vanilla']={exe:'web',name:'vanilla_clone',desc:'Vanilla hex grid with WebServerWorm purple accent.',
+  init(c,r){rendererState=initGrid(c,r);},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,thr}=rendererState;for(let i=0;i<r;i++)for(let j=0;j<c;j++)if(thr[i][j]>params.pct)grid[i][j]=rndH();},
+  draw(ctx,c,r,ac){const{grid,thr}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){ctx.fillStyle=thr[i][j]<=params.pct?rgb(ac):rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+ITEMS['web_headers']={exe:'web',name:'http_headers',desc:'Scrolling HTTP-like headers; each line sends as progress advances.',
+  init(){rendererState={headers:['GET / HTTP/1.1','Host: target.node','X-GP-Crack: v2','X-Tier: 2','X-Port: 10080','Exploit: overflow','Payload: 0x'+Math.floor(Math.random()*0xFFFF).toString(16).toUpperCase(),'Cookie: sess=inject','Pragma: no-cache','Connection: exploit','---','HTTP/1.1 200 OK','Server: exploited','Port: OPEN'],scrollY:0};},
+  tick(dt){rendererState.scrollY+=dt*14*params.pct;},
+  draw(ctx,c,r,ac){const{headers,scrollY}=rendererState;const cY=params.headerH+4,cH=params.charH,tl=headers.length,cl=Math.floor(params.pct*tl);ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++){const li=Math.floor(scrollY/cH+i)%tl;ctx.fillStyle=li===cl?'rgba(255,255,180,0.9)':li<cl?rgb(ac,0.9):rgb(UNCRK,0.6);ctx.fillText((headers[li]||'').substring(0,Math.floor(PANEL_W/params.charW)),6,cY+i*cH+cH-2);}}
+};
+ITEMS['web_spiral']={exe:'web',name:'spiral_unlock',desc:'Chars unlock center-outward in a spiral.',
+  init(c,r){rendererState=initGrid(c,r);const o=[];let top=0,bot=r-1,left=0,right=c-1;while(top<=bot&&left<=right){for(let j=left;j<=right;j++)o.push([top,j]);top++;for(let i=top;i<=bot;i++)o.push([i,right]);right--;if(top<=bot){for(let j=right;j>=left;j--)o.push([bot,j]);bot--;}if(left<=right){for(let i=bot;i>=top;i--)o.push([i,left]);left++;}}o.reverse();rendererState.spiral=o;},
+  tick(dt,c,r){flickerT+=dt;if(flickerT<0.08)return;flickerT=0;const{grid,spiral}=rendererState;const cc=Math.floor(params.pct*spiral.length);spiral.slice(cc).forEach(([i,j])=>{grid[i][j]=rndH();});},
+  draw(ctx,c,r,ac){const{grid,spiral}=rendererState;const cX=4,cY=params.headerH,cW=params.charW,cH=params.charH;const cc=Math.floor(params.pct*spiral.length);const cs=new Set();for(let i=0;i<cc;i++){const[a,b]=spiral[i];cs.add(a*1000+b);}ctx.font=`${cH-1}px monospace`;for(let i=0;i<r;i++)for(let j=0;j<c;j++){ctx.fillStyle=cs.has(i*1000+j)?rgb(ac):rgb(UNCRK);ctx.fillText(grid[i][j],cX+j*cW,cY+i*cH+cH-2);}}
+};
+
+// ─────────────────────────────────────────────
+//  MINIGAMES  — SPACE only
+// ─────────────────────────────────────────────
+
+// ════════════════════════════════════════════
+//  MG1: SSH PATTERN MATCH
+//  Row of 5 symbols. Show phase: some are lit.
+//  Replay phase: each symbol is shown one at a time
+//  with a shrinking timer bar beneath it.
+//  SPACE = "yes this was lit". No press = "not lit".
+//  Auto-advances after window expires.
+//  Correct on ≥3/5 → progress. 6 rounds = done.
+// ════════════════════════════════════════════
+const PM_SYMS   = ['◆','○','▲','■','✦'];
+const PM_COUNT  = 5;
+const PM_SHOW_T = 2.2;   // how long full row is shown
+const PM_WIN_T  = 0.9;   // how long per symbol during replay
+
+ITEMS['mg_keymatch'] = {
+  exe:'ssh', name:'pattern_match', isMiniGame:true,
+  desc:'SSH mini-game: Memorize which symbols are lit, then press SPACE for each lit one as they cycle past.',
+  _newRound() {
+    const prev = rendererState;
+    // 5 symbols, 2–3 of them are "lit"
+    const syms  = Array.from({length:PM_COUNT}, ()=>rndI(PM_SYMS.length));
+    const nLit  = 2 + rndI(2);
+    const litSet= new Set();
+    while(litSet.size < nLit) litSet.add(rndI(PM_COUNT));
+    rendererState = {
+      phase: 'show',
+      showTimer: PM_SHOW_T,
+      syms, litSet,
+      // replay state
+      replayIdx: 0,
+      winTimer: PM_WIN_T,
+      pressed: false,
+      playerHits: [],    // true/false per position
+      // scoring
+      roundsDone: prev.roundsDone||0,
+      totalRounds: 6,
+      flashTimer: 0, flashGood: false,
+    };
+  },
+  init() { rendererState={}; this._newRound(); },
+  tick(dt) {
+    const s = rendererState;
+    if (s.phase==='win') return;
+    if (s.flashTimer>0) s.flashTimer-=dt;
+
+    if (s.phase==='show') {
+      s.showTimer -= dt;
+      if (s.showTimer <= 0) {
+        s.phase='replay';
+        s.replayIdx=0; s.winTimer=PM_WIN_T; s.pressed=false;
+      }
+    } else if (s.phase==='replay') {
+      s.winTimer -= dt;
+      if (s.winTimer <= 0) {
+        // record: did they press for this symbol?
+        s.playerHits.push(s.pressed);
+        s.replayIdx++;
+        s.pressed = false;
+        if (s.replayIdx >= PM_COUNT) {
+          // score: correct responses
+          let correct=0;
+          for(let i=0;i<PM_COUNT;i++){
+            const shouldHit = s.litSet.has(i);
+            const didHit    = s.playerHits[i];
+            if(shouldHit===didHit) correct++;
+          }
+          if(correct>=3) { s.roundsDone++; s.flashGood=true; }
+          else { s.flashGood=false; }
+          s.flashTimer=0.7;
+          s.phase='feedback';
+          s.feedbackTimer=0.8;
+        } else {
+          s.winTimer = PM_WIN_T;
+        }
+      }
+    } else if (s.phase==='feedback') {
+      s.feedbackTimer -= dt;
+      if (s.feedbackTimer<=0) {
+        if (s.roundsDone >= s.totalRounds) s.phase='win';
+        else this._newRound();
+      }
+    }
+    params.pct = Math.min((s.roundsDone||0)/s.totalRounds, 1);
+  },
+  onKey(k) {
+    const s=rendererState;
+    if (k===' ' && s.phase==='replay' && !s.pressed) s.pressed=true;
+  },
+  draw(ctx) {
+    const s=rendererState;
+    const hH=params.headerH;
+    const contentH = PANEL_H-hH;
+    const midY = hH + contentH/2;
+
+    // Symbol row layout
+    const boxW=30, boxH=30, gap=6;
+    const totalW = PM_COUNT*(boxW+gap)-gap;
+    const startX = (PANEL_W-totalW)/2;
+    const rowY   = midY - boxH/2 - 6;
+
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+
+    if (s.phase==='show') {
+      // All 5 symbols visible, lit ones glow
+      for(let i=0;i<PM_COUNT;i++){
+        const bx=startX+i*(boxW+gap), lit=s.litSet.has(i);
+        ctx.fillStyle=lit?'#1c1800':'#0d0d0d';
+        ctx.fillRect(bx,rowY,boxW,boxH);
+        ctx.strokeStyle=lit?'#776622':'#1e1e1e'; ctx.lineWidth=1;
+        ctx.strokeRect(bx,rowY,boxW,boxH);
+        ctx.font='16px monospace';
+        ctx.fillStyle=lit?'#ffdb44':'#333';
+        ctx.fillText(PM_SYMS[s.syms[i]], bx+boxW/2, rowY+boxH/2);
+      }
+      // countdown bar beneath
+      const barW=totalW, barY=rowY+boxH+6;
+      ctx.fillStyle='#1a1a1a'; ctx.fillRect(startX,barY,barW,4);
+      ctx.fillStyle=rgb(COLORS.ssh,0.7);
+      ctx.fillRect(startX,barY,barW*(s.showTimer/PM_SHOW_T),4);
+      ctx.font='8px monospace'; ctx.fillStyle='#664'; ctx.textAlign='center';
+      ctx.fillText('MEMORIZE',PANEL_W/2,barY+12);
+
+    } else if (s.phase==='replay') {
+      const i = s.replayIdx;
+      const bx=startX+i*(boxW+gap);
+
+      // Dim previous
+      for(let j=0;j<PM_COUNT;j++){
+        const jx=startX+j*(boxW+gap);
+        ctx.fillStyle=j<i?'#0a0a0a':'#0d0d0d';
+        ctx.fillRect(jx,rowY,boxW,boxH);
+        ctx.strokeStyle=j<i?'#111':'#181818'; ctx.lineWidth=1;
+        ctx.strokeRect(jx,rowY,boxW,boxH);
+        if(j<i){
+          // show what they did
+          const hit=s.playerHits[j];
+          ctx.fillStyle=hit?rgb(COLORS.ssh,0.5):'#252525';
+          ctx.font='11px monospace';
+          ctx.fillText(hit?'✓':'·', jx+boxW/2, rowY+boxH/2);
+        } else if(j>i){
+          ctx.fillStyle='#1e1e1e'; ctx.font='16px monospace';
+          ctx.fillText('?', jx+boxW/2, rowY+boxH/2);
+        }
+      }
+
+      // Active symbol box — pulsing border
+      const pulse = Math.sin(Date.now()/120)*0.3+0.7;
+      ctx.fillStyle='#151515'; ctx.fillRect(bx,rowY,boxW,boxH);
+      ctx.strokeStyle=s.pressed?rgb(COLORS.ssh,pulse):`rgba(100,100,100,${pulse*0.5})`; ctx.lineWidth=s.pressed?2:1;
+      ctx.strokeRect(bx,rowY,boxW,boxH);
+      ctx.font='16px monospace';
+      ctx.fillStyle=s.pressed?rgb(COLORS.ssh):'#aaa';
+      ctx.fillText(PM_SYMS[s.syms[i]], bx+boxW/2, rowY+boxH/2);
+
+      // Timer bar under active box
+      const frac = s.winTimer/PM_WIN_T;
+      const barY = rowY+boxH+6;
+      ctx.fillStyle='#1a1a1a'; ctx.fillRect(bx,barY,boxW,4);
+      ctx.fillStyle = frac>0.4?rgb(COLORS.ssh,0.8):'rgba(255,80,80,0.8)';
+      ctx.fillRect(bx,barY,boxW*frac,4);
+
+      // Hint
+      ctx.font='8px monospace'; ctx.fillStyle='#444'; ctx.textAlign='center';
+      ctx.fillText('SPACE if lit · wait to skip', PANEL_W/2, PANEL_H-10);
+
+    } else if (s.phase==='feedback') {
+      for(let i=0;i<PM_COUNT;i++){
+        const bx=startX+i*(boxW+gap);
+        const shouldHit=s.litSet.has(i), didHit=s.playerHits[i];
+        const correct=shouldHit===didHit;
+        ctx.fillStyle=correct?(shouldHit?'#001a00':'#101010'):(shouldHit?'#1a1200':'#1a0000');
+        ctx.fillRect(bx,rowY,boxW,boxH);
+        ctx.strokeStyle=correct?(shouldHit?'#0a4':'#222'):(shouldHit?'#660':'#600'); ctx.lineWidth=1;
+        ctx.strokeRect(bx,rowY,boxW,boxH);
+        ctx.font='16px monospace';
+        ctx.fillStyle=correct?(shouldHit?'#0f8':'#333'):(shouldHit?'#fa0':'#f44');
+        ctx.fillText(PM_SYMS[s.syms[i]], bx+boxW/2, rowY+boxH/2);
+      }
+      ctx.font='9px monospace'; ctx.textAlign='center';
+      ctx.fillStyle=s.flashGood?'#0f8':'#f44';
+      ctx.fillText(s.flashGood?`✓  (${s.roundsDone}/${s.totalRounds})`:`✗  (${s.roundsDone}/${s.totalRounds})`, PANEL_W/2, rowY+boxH+16);
+
+    } else if (s.phase==='win') {
+      ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,hH,PANEL_W,PANEL_H-hH);
+      ctx.font='13px monospace'; ctx.fillStyle=rgb(COLORS.ssh);
+      ctx.fillText('PORT OPEN', PANEL_W/2, PANEL_H/2-5);
+      ctx.font='9px monospace'; ctx.fillStyle='#0f8';
+      ctx.fillText(`${s.totalRounds}/${s.totalRounds} patterns matched`, PANEL_W/2, PANEL_H/2+9);
+    }
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   }
-}
+};
 
-async function writeCfgFile() {
-  if (!fileHandle) return;
-  try {
-    const writable = await fileHandle.createWritable();
-    await writable.write(generateCfgContent());
-    await writable.close();
-    // flash confirmation
-    const flash = document.getElementById('saveFlash');
-    flash.style.opacity = 1;
-    clearTimeout(saveFlashTimer);
-    saveFlashTimer = setTimeout(() => { flash.style.opacity = 0; }, 1000);
-  } catch (e) {
-    document.getElementById('fileStatus').textContent = 'Save error: ' + e.message;
+// ════════════════════════════════════════════
+//  MG2: SSH SIGNAL SYNC
+//  Single bar. Indicator oscillates at varying speed.
+//  Target zone in center. SPACE to sync.
+//  5 syncs = done. Cooldown prevents spam.
+//  Metaphor: SSH handshake — hit the window.
+// ════════════════════════════════════════════
+const SS_BAR_X  = 16;
+const SS_BAR_W  = PANEL_W - 32;
+const SS_BAR_H  = 22;
+const SS_ZONE_W = 32;   // target window width
+
+ITEMS['mg_signalsync'] = {
+  exe:'ssh', name:'signal_sync', isMiniGame:true,
+  desc:'SSH V3 mini-game: Press SPACE when the signal indicator aligns with the center zone.',
+  init() {
+    rendererState = {
+      phase: 'active',
+      // oscillation: position = sin(phase) * travel
+      sPhase: 0,
+      speed: 1.8 + Math.random()*0.8,   // rad/s — varies per game
+      accel: 0,                           // changes over time for unpredictability
+      synced: 0, totalSyncs: 5,
+      cooldown: 0,
+      flashTimer: 0, flashGood: false,
+    };
+  },
+  _inZone(s) {
+    const travel = (SS_BAR_W/2 - SS_ZONE_W/2);
+    return Math.abs(Math.sin(s.sPhase) * travel) < SS_ZONE_W/2;
+  },
+  tick(dt) {
+    const s=rendererState; if(s.phase==='win')return;
+    // Vary speed slightly over time — prevents metronome memorization
+    s.accel += dt*(Math.random()-0.5)*0.4;
+    s.accel  = clamp(s.accel,-0.5,0.5);
+    s.speed  = clamp(s.speed+s.accel*dt, 1.2, 3.5);
+    s.sPhase += s.speed*dt;
+    if(s.flashTimer>0) s.flashTimer-=dt;
+    if(s.cooldown>0)   s.cooldown-=dt;
+    params.pct = Math.min(s.synced/s.totalSyncs,1);
+    if(s.synced>=s.totalSyncs) s.phase='win';
+  },
+  onKey(k) {
+    const s=rendererState; if(k!==' '||s.phase!=='active'||s.cooldown>0)return;
+    s.cooldown = 0.35;
+    if(this._inZone(s)) { s.synced++; s.flashGood=true;  s.flashTimer=0.45; }
+    else                 {             s.flashGood=false; s.flashTimer=0.3;  }
+  },
+  draw(ctx) {
+    const s=rendererState; const hH=params.headerH;
+    const barY = hH + (PANEL_H-hH)/2 - SS_BAR_H/2;
+    const cx   = SS_BAR_X + SS_BAR_W/2;
+    const travel = (SS_BAR_W/2 - SS_ZONE_W/2);
+    const indX   = cx + Math.sin(s.sPhase)*travel;
+    const inZone = this._inZone(s);
+    const fl     = s.flashTimer>0;
+
+    // Track background
+    ctx.fillStyle='#0d0d0d'; ctx.fillRect(SS_BAR_X,barY,SS_BAR_W,SS_BAR_H);
+    ctx.strokeStyle='#1e1e1e'; ctx.lineWidth=1; ctx.strokeRect(SS_BAR_X,barY,SS_BAR_W,SS_BAR_H);
+
+    // Target zone
+    const zoneX = cx - SS_ZONE_W/2;
+    ctx.fillStyle = fl ? (s.flashGood?'rgba(0,255,100,0.2)':'rgba(255,60,60,0.1)') : 'rgba(255,220,0,0.07)';
+    ctx.fillRect(zoneX,barY+1,SS_ZONE_W,SS_BAR_H-2);
+    ctx.strokeStyle = fl ? (s.flashGood?'rgba(0,255,100,0.8)':'rgba(255,60,60,0.6)') : 'rgba(255,220,0,0.4)';
+    ctx.lineWidth=1; ctx.strokeRect(zoneX,barY+1,SS_ZONE_W,SS_BAR_H-2);
+
+    // Tick marks at zone edges
+    const tm=4;
+    ctx.strokeStyle='rgba(255,220,0,0.3)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(zoneX,barY); ctx.lineTo(zoneX,barY-tm); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(zoneX+SS_ZONE_W,barY); ctx.lineTo(zoneX+SS_ZONE_W,barY-tm); ctx.stroke();
+
+    // Indicator glow
+    const glowR = fl ? 12 : inZone ? 10 : 7;
+    const glowC = fl
+      ? (s.flashGood?'rgba(0,255,130,0.3)':'rgba(255,60,60,0.25)')
+      : inZone?'rgba(0,200,80,0.2)':'rgba(200,120,0,0.15)';
+    ctx.fillStyle=glowC; ctx.beginPath(); ctx.arc(indX,barY+SS_BAR_H/2,glowR,0,Math.PI*2); ctx.fill();
+
+    // Indicator dot
+    ctx.fillStyle = fl
+      ? (s.flashGood?'#0f8':'#f44')
+      : inZone ? 'rgba(120,255,170,0.95)' : rgb(COLORS.ssh,0.9);
+    ctx.beginPath(); ctx.arc(indX,barY+SS_BAR_H/2,5,0,Math.PI*2); ctx.fill();
+
+    // Sync pips
+    const pipW=18, pipH=7, pipGap=5;
+    const totalPipW = s.totalSyncs*(pipW+pipGap)-pipGap;
+    const pipX=(PANEL_W-totalPipW)/2, pipY=barY+SS_BAR_H+12;
+    for(let i=0;i<s.totalSyncs;i++){
+      ctx.fillStyle=i<s.synced?'#0f8':'#1a1a1a';
+      ctx.fillRect(pipX+i*(pipW+pipGap),pipY,pipW,pipH);
+      ctx.strokeStyle=i<s.synced?'#0a5':'#222'; ctx.lineWidth=1;
+      ctx.strokeRect(pipX+i*(pipW+pipGap),pipY,pipW,pipH);
+    }
+
+    // Status text
+    ctx.font='8px monospace'; ctx.textAlign='center';
+    if(fl){
+      ctx.fillStyle=s.flashGood?'#0f8':'#f44';
+      ctx.fillText(s.flashGood?'SYNC':'MISS', PANEL_W/2, barY-8);
+    } else {
+      ctx.fillStyle='#333'; ctx.fillText('[SPACE]', PANEL_W/2, barY-8);
+    }
+    ctx.textAlign='left';
+
+    if(s.phase==='win'){
+      ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,hH,PANEL_W,PANEL_H-hH);
+      ctx.font='13px monospace'; ctx.fillStyle=rgb(COLORS.ssh); ctx.textAlign='center';
+      ctx.fillText('PORT OPEN',PANEL_W/2,PANEL_H/2-5);
+      ctx.font='9px monospace'; ctx.fillStyle='#0f8';
+      ctx.fillText('handshake established',PANEL_W/2,PANEL_H/2+9);
+      ctx.textAlign='left';
+    }
   }
+};
+
+// ════════════════════════════════════════════
+//  MG3: FTP PACKET SORT  (single column)
+//  TARGET label shown top-right.
+//  Packets fall down center column.
+//  SPACE when a TARGET packet is in the catch zone.
+//  Catching a non-target = penalty flash.
+//  Missing a target = nothing (just don't catch).
+//  10 correct catches = done.
+//  High density — multiple packets visible at once.
+// ════════════════════════════════════════════
+const PSC_COL_X   = PANEL_W/2 - 28;
+const PSC_COL_W   = 56;
+const PSC_PKT_H   = 12;
+const PSC_CATCH_T = 14;  // height of catch zone from bottom
+const PSC_CATCH_Y = PANEL_H - PSC_CATCH_T;
+
+ITEMS['mg_packetsort'] = {
+  exe:'ftp', name:'packet_sort', isMiniGame:true,
+  desc:'FTP mini-game: Packets fall in a single column. Press SPACE to catch only TARGET packets in the zone.',
+  _newTarget() { return HEX[rndI(16)]+HEX[rndI(16)]; },
+  _spawn(target, spawnY) {
+    const isTarget = Math.random()<0.35;
+    let label;
+    if(isTarget) label=target;
+    else { do { label=HEX[rndI(16)]+HEX[rndI(16)]; } while(label===target); }
+    return { y:spawnY, label, isTarget, dead:false };
+  },
+  init() {
+    const target=this._newTarget();
+    rendererState = {
+      target, packets:[],
+      spawnTimer:0, spawnInterval:0.65,
+      speed:36,
+      caught:0, needed:10,
+      penaltyFlash:0, hitFlash:0,
+      cooldown:0,
+      phase:'active',
+    };
+  },
+  tick(dt) {
+    const s=rendererState; if(s.phase==='win')return;
+    s.spawnTimer+=dt; if(s.penaltyFlash>0)s.penaltyFlash-=dt; if(s.hitFlash>0)s.hitFlash-=dt; if(s.cooldown>0)s.cooldown-=dt;
+    // Spawn — denser than before
+    if(s.spawnTimer>=s.spawnInterval) {
+      s.spawnTimer=0;
+      s.spawnInterval=Math.max(0.38, 0.65-s.caught*0.015);
+      // Spawn at top, staggered based on last packet
+      const spawnY = params.headerH+14;
+      // Only spawn if no other packet is very close to top
+      const tooClose = s.packets.some(p=>!p.dead&&p.y<spawnY+PSC_PKT_H*1.5);
+      if(!tooClose) s.packets.push(this._spawn(s.target, spawnY));
+    }
+    for(const p of s.packets){
+      p.y+=s.speed*dt;
+      if(p.y>PANEL_H) p.dead=true;
+    }
+    s.packets=s.packets.filter(p=>!p.dead);
+    s.speed=36+s.caught*1.2;
+    params.pct=Math.min(s.caught/s.needed,1);
+    if(s.caught>=s.needed) s.phase='win';
+  },
+  onKey(k) {
+    const s=rendererState; if(k!==' '||s.phase!=='active'||s.cooldown>0)return;
+    s.cooldown=0.15;
+    // Find topmost packet in catch zone
+    let best=null;
+    for(const p of s.packets){
+      if(!p.dead && p.y+PSC_PKT_H>=PSC_CATCH_Y && p.y<=PANEL_H){
+        if(!best||p.y>best.y) best=p;
+      }
+    }
+    if(!best) return;   // press with nothing in zone — ignore
+    if(best.isTarget)  { s.caught++; s.hitFlash=0.25; best.dead=true; }
+    else               { s.penaltyFlash=0.3; best.dead=true; }
+  },
+  draw(ctx) {
+    const s=rendererState; const hH=params.headerH;
+    const fl_hit=s.hitFlash>0, fl_pen=s.penaltyFlash>0;
+
+    // Header strip
+    ctx.fillStyle='#0f0f0f'; ctx.fillRect(0,hH,PANEL_W,13);
+    ctx.font='8px monospace'; ctx.textBaseline='top';
+    ctx.fillStyle='#444'; ctx.fillText('TARGET:',4,hH+3);
+    ctx.fillStyle=fl_pen?'#f44':rgb(COLORS.ftp);
+    ctx.fillText(`[${s.target}]`,50,hH+3);
+    ctx.fillStyle='#333'; ctx.textAlign='right';
+    ctx.fillText(`${s.caught}/${s.needed}`,PANEL_W-4,hH+3);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+
+    // Column bg
+    ctx.fillStyle='#0a0a0a'; ctx.fillRect(PSC_COL_X,hH+13,PSC_COL_W,PANEL_H-hH-13);
+    ctx.strokeStyle='#181818'; ctx.lineWidth=1; ctx.strokeRect(PSC_COL_X,hH+13,PSC_COL_W,PANEL_H-hH-13);
+
+    // Catch zone
+    ctx.fillStyle=fl_hit?'rgba(0,140,220,0.18)':fl_pen?'rgba(255,60,60,0.12)':'rgba(0,140,220,0.06)';
+    ctx.fillRect(PSC_COL_X+1,PSC_CATCH_Y,PSC_COL_W-2,PSC_CATCH_T-1);
+    ctx.strokeStyle=fl_hit?rgb(COLORS.ftp,0.8):fl_pen?'rgba(255,60,60,0.6)':'rgba(0,140,220,0.25)';
+    ctx.lineWidth=1; ctx.strokeRect(PSC_COL_X+1,PSC_CATCH_Y,PSC_COL_W-2,PSC_CATCH_T-1);
+
+    // SPACE label in catch zone
+    ctx.font='7px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=fl_hit?rgb(COLORS.ftp):fl_pen?'#f44':'#2a2a2a';
+    ctx.fillText('SPACE',PSC_COL_X+PSC_COL_W/2,PSC_CATCH_Y+PSC_CATCH_T/2);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+
+    // Packets
+    for(const p of s.packets){
+      const inZone = p.y+PSC_PKT_H>=PSC_CATCH_Y && p.y<=PANEL_H;
+      const isT=p.isTarget;
+      ctx.fillStyle=isT?rgb(COLORS.ftp,0.13):'#0c0c0c';
+      ctx.fillRect(PSC_COL_X+2,p.y,PSC_COL_W-4,PSC_PKT_H);
+      ctx.strokeStyle=isT?rgb(COLORS.ftp,inZone?0.75:0.35):'#1e1e1e'; ctx.lineWidth=1;
+      ctx.strokeRect(PSC_COL_X+2,p.y,PSC_COL_W-4,PSC_PKT_H);
+      ctx.font='9px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillStyle=isT?rgb(COLORS.ftp):inZone?'#3a3a3a':'#222';
+      ctx.fillText(`[${p.label}]`,PSC_COL_X+PSC_COL_W/2,p.y+PSC_PKT_H/2);
+    }
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+
+    if(fl_hit){ctx.font='9px monospace';ctx.fillStyle='rgba(0,200,255,0.7)';ctx.textAlign='center';ctx.fillText('CATCH',PSC_COL_X+PSC_COL_W/2,PSC_CATCH_Y-5);ctx.textAlign='left';}
+    if(fl_pen){ctx.font='9px monospace';ctx.fillStyle='rgba(255,80,80,0.7)'; ctx.textAlign='center';ctx.fillText('WRONG',PSC_COL_X+PSC_COL_W/2,PSC_CATCH_Y-5);ctx.textAlign='left';}
+
+    if(s.phase==='win'){
+      ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,hH,PANEL_W,PANEL_H-hH);
+      ctx.font='13px monospace'; ctx.fillStyle=rgb(COLORS.ftp); ctx.textAlign='center';
+      ctx.fillText('PORT OPEN',PANEL_W/2,PANEL_H/2-5);
+      ctx.font='9px monospace'; ctx.fillStyle='#0f8';
+      ctx.fillText(`${s.needed} packets rerouted`,PANEL_W/2,PANEL_H/2+9);
+      ctx.textAlign='left';
+    }
+  }
+};
+
+// ════════════════════════════════════════════
+//  MG4: FTP RELAY ABACUS  (unchanged — already SPACE)
+// ════════════════════════════════════════════
+function buildAbacusPath(hH){
+  const y1=hH+22,y2=hH+56,y3=hH+90,x0=12,x1=PANEL_W-12;
+  const wp=[{x:x0,y:y1},{x:x1,y:y1},{x:x1,y:y2},{x:x0,y:y2},{x:x0,y:y3},{x:x1,y:y3}];
+  const len=wp.slice(0,-1).map((_,i)=>Math.hypot(wp[i+1].x-wp[i].x,wp[i+1].y-wp[i].y));
+  const total=len.reduce((s,v)=>s+v,0);
+  return{wp,len,total};
+}
+function abacusAt(wp,len,total,t){
+  let dist=t*total,acc=0;
+  for(let i=0;i<len.length;i++){if(acc+len[i]>=dist){const st=(dist-acc)/len[i],a=wp[i],b=wp[i+1];return{x:a.x+(b.x-a.x)*st,y:a.y+(b.y-a.y)*st};}acc+=len[i];}
+  return wp[wp.length-1];
+}
+const AB_ZONES=[{lo:0.10,hi:0.22},{lo:0.46,hi:0.58},{lo:0.81,hi:0.93}];
+ITEMS['mg_abacus']={exe:'ftp',name:'relay_abacus',isMiniGame:true,
+  desc:'FTP V3 mini-game: Press SPACE when the indicator hits a green zone. All 3 per cycle, 4 cycles.',
+  init(){
+    const{wp,len,total}=buildAbacusPath(params.headerH);
+    rendererState={wp,len,total,t:0,speed:0.25,zones:AB_ZONES.map(z=>({...z,hit:false})),cycle:0,totalCycles:4,phase:'active',missFlash:0,hitFlash:0};
+  },
+  tick(dt){
+    const s=rendererState;if(s.phase==='win')return;
+    if(s.missFlash>0)s.missFlash-=dt;if(s.hitFlash>0)s.hitFlash-=dt;
+    s.t+=s.speed*dt;
+    if(s.t>=1){s.t=0;if(s.zones.every(z=>z.hit))s.cycle++;s.zones=AB_ZONES.map(z=>({...z,hit:false}));s.speed=0.25+s.cycle*0.04;}
+    params.pct=Math.min(s.cycle/s.totalCycles,1);if(s.cycle>=s.totalCycles)s.phase='win';
+  },
+  onKey(k){
+    const s=rendererState;if(k!==' '||s.phase!=='active')return;
+    let hit=false;for(const z of s.zones){if(!z.hit&&s.t>=z.lo&&s.t<=z.hi){z.hit=true;hit=true;s.hitFlash=0.18;}}
+    if(!hit)s.missFlash=0.18;
+  },
+  draw(ctx){
+    const s=rendererState;const{wp,len,total}=s;const hH=params.headerH;
+    for(let seg=0;seg<wp.length-1;seg++){
+      const a=wp[seg],b=wp[seg+1];let acc=0;for(let i=0;i<seg;i++)acc+=len[i];
+      const ts=acc/total,te=(acc+len[seg])/total;
+      for(const z of s.zones){const oLo=Math.max(z.lo,ts),oHi=Math.min(z.hi,te);if(oHi>oLo){const st=(oLo-ts)/(te-ts),et=(oHi-ts)/(te-ts);ctx.strokeStyle=z.hit?'#0f8':'rgba(0,255,100,0.4)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x+(b.x-a.x)*st,a.y+(b.y-a.y)*st);ctx.lineTo(a.x+(b.x-a.x)*et,a.y+(b.y-a.y)*et);ctx.stroke();}}
+      ctx.strokeStyle='#2a2a2a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+    for(const z of s.zones){const m=(z.lo+z.hi)/2,p=abacusAt(wp,len,total,m),r=(z.hi-z.lo)*total/2;ctx.fillStyle=z.hit?'rgba(0,255,100,0.12)':'rgba(0,200,80,0.06)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle=z.hit?'#0f8':'#0a4';ctx.lineWidth=1;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();}
+    if(s.phase==='active'){const pos=abacusAt(wp,len,total,s.t);const inZ=s.zones.some(z=>s.t>=z.lo&&s.t<=z.hi);const gR=s.hitFlash>0?10:s.missFlash>0?8:6;const gC=s.hitFlash>0?'rgba(0,255,150,0.3)':s.missFlash>0?'rgba(255,60,60,0.3)':inZ?'rgba(0,200,80,0.25)':'rgba(0,140,220,0.15)';ctx.fillStyle=gC;ctx.beginPath();ctx.arc(pos.x,pos.y,gR,0,Math.PI*2);ctx.fill();ctx.fillStyle=s.hitFlash>0?'#0f8':s.missFlash>0?'#f44':inZ?'rgba(100,255,160,0.9)':rgb(COLORS.ftp);ctx.beginPath();ctx.arc(pos.x,pos.y,4,0,Math.PI*2);ctx.fill();}
+    ctx.font='8px monospace';ctx.textAlign='right';ctx.fillStyle='#444';ctx.fillText(`CYCLE ${s.cycle+1}/${s.totalCycles}`,PANEL_W-4,hH+10);ctx.fillStyle=s.zones.filter(z=>z.hit).length===3?'#0f8':'#556';ctx.fillText(`ZONES ${s.zones.filter(z=>z.hit).length}/3`,PANEL_W-4,hH+20);ctx.textAlign='left';ctx.fillStyle='#333';ctx.fillText('[SPACE]',4,hH+10);
+    if(s.phase==='win'){ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,hH,PANEL_W,PANEL_H-hH);ctx.font='13px monospace';ctx.fillStyle=rgb(COLORS.ftp);ctx.textAlign='center';ctx.fillText('PORT OPEN',PANEL_W/2,PANEL_H/2-4);ctx.font='9px monospace';ctx.fillStyle='#0f8';ctx.fillText('relay link stabilised',PANEL_W/2,PANEL_H/2+10);ctx.textAlign='left';}
+  }
+};
+
+// ════════════════════════════════════════════
+//  MG5: WEB INJECTION TIMING  (unchanged — already SPACE)
+// ════════════════════════════════════════════
+const INJ_LINES=[
+  {text:'GET / HTTP/1.1',exploit:false},{text:'Host: target.node',exploit:false},
+  {text:'Connection: keep-alive',exploit:false},{text:'Accept: */*',exploit:false},
+  {text:'X-GP-CRACK: v2',exploit:false},{text:'X-Port: 10080',exploit:false},
+  {text:'> EXPLOIT_PAYLOAD <',exploit:true},{text:'Cookie: sess=inject',exploit:false},
+  {text:'Pragma: no-cache',exploit:false},{text:'X-Tier: 2',exploit:false},{text:'Content-Length: 0',exploit:false},
+];
+const INJ_LH=11,INJ_BAND_Y_F=0.55,INJ_BAND_H=14;
+ITEMS['mg_injection']={exe:'web',name:'inject_timing',isMiniGame:true,
+  desc:'Web mini-game: Press SPACE when the EXPLOIT line passes through the yellow injection band.',
+  init(){rendererState={scrollY:0,speed:38,hits:0,totalHits:10,misses:0,phase:'active',flashTimer:0,flashGood:false,cooldown:0};},
+  _eY(hH){const tH=INJ_LINES.length*INJ_LH,ei=INJ_LINES.findIndex(l=>l.exploit);return hH+16+(((ei*INJ_LH-rendererState.scrollY%tH)+tH*2)%tH);},
+  tick(dt){const s=rendererState;if(s.phase==='win')return;s.scrollY+=s.speed*dt;if(s.flashTimer>0)s.flashTimer-=dt;if(s.cooldown>0)s.cooldown-=dt;s.speed=38+s.hits*2;params.pct=Math.min(s.hits/s.totalHits,1);if(s.hits>=s.totalHits)s.phase='win';},
+  onKey(k){const s=rendererState;if(k!==' '||s.phase==='win'||s.cooldown>0)return;s.cooldown=0.3;const hH=params.headerH,cH=PANEL_H-hH-16;const bY=hH+16+cH*INJ_BAND_Y_F,ey=this._eY(hH);if(Math.abs(ey-bY)<INJ_BAND_H/2+INJ_LH/2){s.hits++;s.flashGood=true;s.flashTimer=0.35;}else{s.misses++;s.flashGood=false;s.flashTimer=0.25;}},
+  draw(ctx){
+    const s=rendererState;const hH=params.headerH;const cs=hH+16,cH=PANEL_H-cs;const bY=cs+cH*INJ_BAND_Y_F,fl=s.flashTimer>0;
+    ctx.fillStyle=fl?(s.flashGood?'rgba(255,220,0,0.38)':'rgba(255,60,60,0.14)'):'rgba(255,220,0,0.07)';ctx.fillRect(0,bY-INJ_BAND_H/2,PANEL_W,INJ_BAND_H);
+    ctx.strokeStyle=fl?(s.flashGood?'rgba(255,220,0,0.9)':'rgba(255,60,60,0.7)'):'rgba(255,220,0,0.35)';ctx.lineWidth=1;ctx.strokeRect(0,bY-INJ_BAND_H/2,PANEL_W,INJ_BAND_H);
+    ctx.font='7px monospace';ctx.fillStyle=fl?(s.flashGood?'#ffd':'#f88'):'rgba(255,220,0,0.45)';ctx.textAlign='right';ctx.fillText('INJECT>',PANEL_W-3,bY+3);ctx.textAlign='left';
+    const tH=INJ_LINES.length*INJ_LH;ctx.font='9px monospace';
+    for(let i=0;i<INJ_LINES.length*3;i++){const line=INJ_LINES[i%INJ_LINES.length];const y=cs+(i*INJ_LH-s.scrollY%tH);if(y<hH||y>PANEL_H+INJ_LH)continue;if(line.exploit){const inB=Math.abs(y-bY)<INJ_BAND_H/2+INJ_LH/2;ctx.fillStyle=inB?'#ffffa0':rgb(COLORS.web,0.9);}else{ctx.fillStyle='rgba(100,100,120,0.6)';}ctx.fillText(line.text,6,y+INJ_LH-2);}
+    ctx.fillStyle='#101010';ctx.fillRect(0,hH,PANEL_W,15);ctx.font='8px monospace';ctx.fillStyle='#444';ctx.fillText(`HITS ${s.hits}/${s.totalHits}`,5,hH+10);if(s.misses>0){ctx.fillStyle='#622';ctx.fillText(`MISS ${s.misses}`,60,hH+10);}ctx.fillStyle='#333';ctx.textAlign='right';ctx.fillText('[SPACE]',PANEL_W-4,hH+10);ctx.textAlign='left';
+    if(fl){ctx.font='9px monospace';ctx.fillStyle=s.flashGood?'rgba(0,255,150,0.8)':'rgba(255,80,80,0.7)';ctx.textAlign='center';ctx.fillText(s.flashGood?'HIT':'MISS',PANEL_W/2,bY+3);ctx.textAlign='left';}
+    if(s.phase==='win'){ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,hH,PANEL_W,PANEL_H-hH);ctx.font='13px monospace';ctx.fillStyle=rgb(COLORS.web);ctx.textAlign='center';ctx.fillText('PORT OPEN',PANEL_W/2,PANEL_H/2-4);ctx.font='9px monospace';ctx.fillStyle='#0f8';ctx.fillText(`${s.totalHits} payloads injected`,PANEL_W/2,PANEL_H/2+10);ctx.textAlign='left';}
+  }
+};
+
+// ─────────────────────────────────────────────
+//  ENGINE
+// ─────────────────────────────────────────────
+const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+let activeKey='ssh_vanilla', cols=0, rows=0;
+
+function getColsRows(){return[Math.max(1,Math.floor((PANEL_W-8)/params.charW)),Math.max(1,Math.floor((PANEL_H-params.headerH-4)/params.charH))];}
+function setScale(s){displayScale=s;canvas.style.width=(PANEL_W*s)+'px';canvas.style.height=(PANEL_H*s)+'px';}
+function isMG(k){return!!(ITEMS[k]&&ITEMS[k].isMiniGame);}
+
+const MG_HINTS={
+  mg_keymatch:  'SPACE = this symbol was lit\n(no press = not lit)',
+  mg_signalsync:'SPACE when indicator in yellow zone',
+  mg_packetsort:'SPACE to catch target packet in zone',
+  mg_abacus:    'SPACE when dot hits green zone',
+  mg_injection: 'SPACE when EXPLOIT line hits band',
+};
+
+function loadItem(key){
+  activeKey=key;[cols,rows]=getColsRows();rendererState={};flickerT=0;
+  ITEMS[key].init(cols,rows);
+  document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));
+  document.querySelector(`[data-item="${key}"]`).classList.add('active');
+  const mg=isMG(key),ex=COLORS[ITEMS[key].exe];
+  const title=document.getElementById('itemTitle');
+  title.textContent=mg?`[MG] ${ex.label} / ${ITEMS[key].name}`:`${ex.label} / ${ITEMS[key].name}`;
+  title.className=mg?'mg':'';
+  document.getElementById('variantName').textContent=ITEMS[key].name;
+  document.getElementById('desc').textContent=ITEMS[key].desc;
+  document.getElementById('gridInfo').textContent=getColsRows().join('×');
+  document.getElementById('fontInfo').textContent=`${params.charW}×${params.charH}`;
+  document.getElementById('pctCtrl').style.opacity=mg?'0.35':'1';
+  document.getElementById('pctSlider').disabled=mg;
+  document.getElementById('scaleCtrl').className=mg?'ctrl visible':'ctrl';
+  document.getElementById('scoreInfo').style.display=mg?'inline':'none';
+  document.getElementById('playBtn').className=mg?'mg':'';
+  document.getElementById('playBtn').textContent=mg?'↺ RESTART':'▶ PLAY';
+  const hint=document.getElementById('hintBadge');
+  hint.className=mg?'visible':''; hint.textContent=MG_HINTS[key]||'';
+  document.getElementById('copyBox').className=mg?'mg':'';
+  document.getElementById('copyBox').textContent=mg
+    ?'// SPACE-only mini-game'
+    :`public static int HeaderH = ${params.headerH};\npublic static int CharW   = ${params.charW};\npublic static int CharH   = ${params.charH};`;
+  if(mg){setScale(parseFloat(document.getElementById('scaleSlider').value));playing=false;}
+  else setScale(1);
 }
 
-function generateCfgContent() {
-  return [
-    '# Gatekeeper Protocol - Draw Test Config',
-    '# Auto-saved from drawtest.html — changes apply within 1 second while Hacknet runs.',
-    '# ramCostV2/V3 take effect on the next cracker spawn.',
-    '',
-    `headerH     = ${cfg.headerH}`,
-    `targetRows  = ${cfg.targetRows}`,
-    `ramCostV2   = ${cfg.ramCostV2}`,
-    `ramCostV3   = ${cfg.ramCostV3}`,
-    '',
-    '# Header layout',
-    `accentH     = ${cfg.accentH  ?? 3}`,
-    `labelOffset = ${cfg.labelOffset ?? 11}`,
-    '',
-    '# Draw style per exe family: matrix | packets | waveform',
-    `sshStyle    = ${cfg.sshStyle || 'matrix'}`,
-    `ftpStyle    = ${cfg.ftpStyle || 'packets'}`,
-    `webStyle    = ${cfg.webStyle || 'matrix'}`,
-  ].join('\n') + '\n';
+function frame(ts){
+  if(!lastT)lastT=ts; const dt=Math.min((ts-lastT)/1000,0.1); lastT=ts;
+  const mg=isMG(activeKey);
+  if(!mg&&playing){
+    playPct=Math.min(playPct+dt*0.08,1);params.pct=playPct;
+    document.getElementById('pctSlider').value=Math.round(playPct*100);
+    document.getElementById('pctVal').textContent=Math.round(playPct*100)+'%';
+    if(playPct>=1){playing=false;document.getElementById('playBtn').textContent='▶ PLAY';playPct=0;}
+  }
+  [cols,rows]=getColsRows();
+  ITEMS[activeKey].tick(dt,cols,rows);
+  if(mg){
+    const p=Math.round(params.pct*100);
+    document.getElementById('pctSlider').value=p;
+    document.getElementById('pctVal').textContent=p+'%';
+    document.getElementById('scoreVal').textContent=p+'%';
+  }
+  ctx.fillStyle='#080808'; ctx.fillRect(0,0,PANEL_W,PANEL_H);
+  const ac=COLORS[ITEMS[activeKey].exe];
+  clearContent(ctx);
+  ITEMS[activeKey].draw(ctx,cols,rows,ac);
+  drawHeader(ctx,ac.label,ac.port,ac);
+  drawOutline(ctx,ac);
+  raf=requestAnimationFrame(frame);
 }
 
-document.getElementById('linkBtn').addEventListener('click', linkFile);
-if (!window.showOpenFilePicker) {
-  document.getElementById('linkBtn').disabled = true;
-  document.getElementById('fileStatus').textContent =
-    'File System Access not supported in this browser. Use ⎘ COPY instead.';
-}
+// ─────────────────────────────────────────────
+//  WIRING
+// ─────────────────────────────────────────────
+document.querySelectorAll('.item').forEach(el=>el.addEventListener('click',()=>loadItem(el.dataset.item)));
 
-// ---- bind sliders / inputs -----------------------------------------------
-function onChange() { gpSaveConfig(cfg); refresh(); writeCfgFile(); reinitPreview(); renderPreview(); }
-
-function bindRange(id, valId, key) {
-  const el = document.getElementById(id);
-  const vl = document.getElementById(valId);
-  el.value = cfg[key] ?? el.value;
-  if (vl) vl.textContent = el.value;
-  el.addEventListener('input', () => {
-    cfg[key] = parseInt(el.value);
-    if (vl) vl.textContent = cfg[key];
-    onChange();
+[['pctSlider','pctVal',v=>{params.pct=v/100;return Math.round(v)+'%';}],
+ ['headerH','headerHVal',v=>{params.headerH=v;loadItem(activeKey);return v;}],
+ ['charW','charWVal',v=>{params.charW=v;loadItem(activeKey);return v;}],
+ ['charH','charHVal',v=>{params.charH=v;loadItem(activeKey);return v;}],
+].forEach(([id,vid,fn])=>{
+  document.getElementById(id).addEventListener('input',function(){
+    document.getElementById(vid).textContent=fn(parseInt(this.value));
+    document.getElementById('gridInfo').textContent=getColsRows().join('×');
+    document.getElementById('fontInfo').textContent=`${params.charW}×${params.charH}`;
   });
-}
-function bindNum(id, key) {
-  const el = document.getElementById(id);
-  el.value = cfg[key] ?? el.value;
-  el.addEventListener('input', () => {
-    const v = parseInt(el.value);
-    if (!isNaN(v) && v > 0) { cfg[key] = v; onChange(); }
-  });
-}
-function bindSelect(id, key, defaultVal) {
-  const el = document.getElementById(id);
-  el.value = cfg[key] || defaultVal;
-  el.addEventListener('change', () => { cfg[key] = el.value; onChange(); });
-}
-
-bindRange('headerH',     'headerHVal',     'headerH');
-bindRange('targetRows',  'targetRowsVal',  'targetRows');
-bindRange('accentH',     'accentHVal',     'accentH');
-bindRange('labelOffset', 'labelOffsetVal', 'labelOffset');
-bindRange('charW',       'charWVal',       'charW');
-bindRange('charH',       'charHVal',       'charH');
-bindNum('ramCostV2', 'ramCostV2');
-bindNum('ramCostV3', 'ramCostV3');
-bindSelect('sshStyle', 'sshStyle', 'matrix');
-bindSelect('ftpStyle', 'ftpStyle', 'packets');
-bindSelect('webStyle', 'webStyle', 'matrix');
-
-['playerRam', 'panelFullH'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => { reinitPreview(); renderPreview(); refresh(); });
+});
+document.getElementById('scaleSlider').addEventListener('input',function(){
+  const v=parseFloat(this.value);document.getElementById('scaleVal').textContent=v+'×';setScale(v);
+});
+document.getElementById('playBtn').addEventListener('click',()=>{
+  if(isMG(activeKey)){rendererState={};ITEMS[activeKey].init(cols,rows);return;}
+  if(playing){playing=false;document.getElementById('playBtn').textContent='▶ PLAY';}
+  else{playing=true;playPct=0;params.pct=0;document.getElementById('pctSlider').value=0;document.getElementById('pctVal').textContent='0%';document.getElementById('playBtn').textContent='⏹ STOP';}
+});
+document.addEventListener('keydown',e=>{
+  if(!isMG(activeKey))return;
+  if(e.key===' ')e.preventDefault();
+  ITEMS[activeKey].onKey&&ITEMS[activeKey].onKey(e.key);
 });
 
-// ---- refresh height table + copy box -------------------------------------
-function refresh() {
-  const playerRam  = parseInt(document.getElementById('playerRam').value);
-  const panelFullH = parseInt(document.getElementById('panelFullH').value);
-  const PANEL_W    = 220;
-
-  const tbody = document.getElementById('heightTable');
-  tbody.innerHTML = '';
-  ['ssh_v2','ftp_v2','web_v2','ssh_v3','ftp_v3','web_v3'].forEach(key => {
-    const cr     = GP_CRACKERS[key];
-    const h      = gpModuleH(cfg, cr.tier, playerRam, panelFullH);
-    const cr_    = gpGetColsRows(PANEL_W, h, cfg);
-    const [cols, rows, scale] = cr_;
-    const contentH = h - cfg.headerH - 4;
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td style="color:${cr.tier>=3?'#0af':'#fa0'}">${cr.label}</td>` +
-      `<td>V${cr.tier}</td>` +
-      `<td>${cr.tier>=3?cfg.ramCostV3:cfg.ramCostV2}</td>` +
-      `<td class="dim">${h} px</td>` +
-      `<td style="color:${contentH<=0?'#a00':'#666'}">${Math.max(0,contentH)} px</td>` +
-      `<td>${scale.toFixed(2)}x</td>` +
-      `<td>${rows}</td>`;
-    tbody.appendChild(tr);
-  });
-
-  document.getElementById('copyBox').textContent = generateCfgContent();
-}
-
-document.getElementById('copyBtn').addEventListener('click', () => {
-  navigator.clipboard?.writeText(generateCfgContent())
-    .then(() => { document.getElementById('copyBtn').textContent = '✓ COPIED'; setTimeout(() => { document.getElementById('copyBtn').textContent = '⎘ COPY'; }, 1500); })
-    .catch(() => {});
-});
-
-// ---- Live Preview --------------------------------------------------------
-const PREV_W = 220;
-let prevFamily  = 'ssh';
-let prevPct     = 0.45;
-let prevPlaying = false;
-let prevLastT   = null;
-let prevRaf     = null;
-let prevStateV2 = null;
-let prevStateV3 = null;
-
-function getPrevCracker(v) { return GP_CRACKERS[prevFamily + '_v' + v]; }
-
-function getPreviewStyle() {
-  if (prevFamily === 'ftp') return cfg.ftpStyle || 'packets';
-  if (prevFamily === 'web') return cfg.webStyle || 'matrix';
-  return cfg.sshStyle || 'matrix';
-}
-
-function reinitPreview() {
-  const playerRam  = parseInt(document.getElementById('playerRam').value);
-  const panelFullH = parseInt(document.getElementById('panelFullH').value);
-  const cv2 = document.getElementById('prevV2');
-  const cv3 = document.getElementById('prevV3');
-  cv2.height = gpModuleH(cfg, 2, playerRam, panelFullH);
-  cv3.height = gpModuleH(cfg, 3, playerRam, panelFullH);
-  const [c2, r2] = gpGetColsRows(PREV_W, cv2.height, cfg);
-  const [c3, r3] = gpGetColsRows(PREV_W, cv3.height, cfg);
-  prevStateV2 = gpInitGrid(c2, r2);
-  prevStateV3 = gpInitGrid(c3, r3);
-  const crV2 = getPrevCracker(2), crV3 = getPrevCracker(3);
-  document.getElementById('prevLabelV2').textContent =
-    crV2.label + ' · :' + crV2.port + ' · ' + crV2.solveTime + 's · ' + (crV2.key || 'no key');
-  document.getElementById('prevLabelV3').textContent =
-    crV3.label + ' · :' + crV3.port + ' · ' + crV3.solveTime + 's · ' + (crV3.key ? '[KEY]' : 'no key');
-}
-
-function renderPrevCanvas(canvasId, tier, state) {
-  const canvas  = document.getElementById(canvasId);
-  const cracker = getPrevCracker(tier);
-  const ctx     = canvas.getContext('2d');
-  const h       = canvas.height;
-  const [cols, rows, , CW, CH] = gpGetColsRows(PREV_W, h, cfg);
-  const accent = GP_TIER_CRACKED[cracker.tier];
-  ctx.fillStyle = '#080808';
-  ctx.fillRect(0, 0, PREV_W, h);
-  if (rows > 0 && state) {
-    const style = getPreviewStyle();
-    const cX = 4, cY = cfg.headerH;
-    if      (style === 'packets')  gpDrawPackets (ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
-    else if (style === 'waveform') gpDrawWaveform(ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
-    else                           gpDrawMatrix  (ctx, state, cols, rows, prevPct, cX, cY, CW, CH, accent);
-  }
-  gpDrawHeader(ctx, cracker, cfg, PREV_W);
-  gpDrawOutline(ctx, cracker.tier, PREV_W, h);
-}
-
-function renderPreview() {
-  if (!prevStateV2 || !prevStateV3) reinitPreview();
-  renderPrevCanvas('prevV2', 2, prevStateV2);
-  renderPrevCanvas('prevV3', 3, prevStateV3);
-}
-
-function prevFrame(ts) {
-  if (!prevPlaying) { prevRaf = null; return; }
-  if (prevLastT === null) prevLastT = ts;
-  const dt = Math.min((ts - prevLastT) / 1000, 0.1);
-  prevLastT = ts;
-
-  prevPct = Math.min(1, prevPct + dt / getPrevCracker(2).solveTime);
-  document.getElementById('prevPct').value = Math.round(prevPct * 100);
-  document.getElementById('prevPctVal').textContent = Math.round(prevPct * 100) + '%';
-
-  const cv2 = document.getElementById('prevV2'), cv3 = document.getElementById('prevV3');
-  const [c2, r2] = gpGetColsRows(PREV_W, cv2.height, cfg);
-  const [c3, r3] = gpGetColsRows(PREV_W, cv3.height, cfg);
-  const style = getPreviewStyle();
-  const tick = style === 'packets'  ? gpTickFlickerPackets
-             : style === 'waveform' ? gpTickFlickerWaveform
-             :                        gpTickFlicker;
-  tick(prevStateV2, dt, c2, r2, prevPct);
-  tick(prevStateV3, dt, c3, r3, prevPct);
-
-  renderPreview();
-
-  if (prevPct >= 1) {
-    prevPlaying = false;
-    const btn = document.getElementById('prevPlay');
-    btn.textContent = '▶'; btn.classList.remove('active');
-    setTimeout(() => {
-      prevPct = 0;
-      document.getElementById('prevPct').value = 0;
-      document.getElementById('prevPctVal').textContent = '0%';
-      reinitPreview(); renderPreview();
-    }, 600);
-    prevRaf = null;
-    return;
-  }
-  prevRaf = requestAnimationFrame(prevFrame);
-}
-
-document.getElementById('prevFamily').addEventListener('change', e => {
-  prevFamily = e.target.value; reinitPreview(); renderPreview();
-});
-document.getElementById('prevPct').addEventListener('input', e => {
-  prevPct = parseInt(e.target.value) / 100;
-  document.getElementById('prevPctVal').textContent = e.target.value + '%';
-  if (!prevStateV2) reinitPreview();
-  renderPreview();
-});
-document.getElementById('prevPlay').addEventListener('click', () => {
-  prevPlaying = !prevPlaying;
-  const btn = document.getElementById('prevPlay');
-  btn.textContent = prevPlaying ? '⏸' : '▶';
-  btn.classList.toggle('active', prevPlaying);
-  if (prevPlaying) { prevLastT = null; if (!prevRaf) prevRaf = requestAnimationFrame(prevFrame); }
-});
-document.getElementById('prevRestart').addEventListener('click', () => {
-  prevPlaying = false;
-  const btn = document.getElementById('prevPlay');
-  btn.textContent = '▶'; btn.classList.remove('active');
-  prevPct = 0;
-  document.getElementById('prevPct').value = 0;
-  document.getElementById('prevPctVal').textContent = '0%';
-  reinitPreview(); renderPreview();
-});
-
-// ---- init ----------------------------------------------------------------
-reinitPreview();
-renderPreview();
-refresh();
+loadItem('ssh_vanilla');
+raf=requestAnimationFrame(frame);
 </script>
 </body>
 </html>

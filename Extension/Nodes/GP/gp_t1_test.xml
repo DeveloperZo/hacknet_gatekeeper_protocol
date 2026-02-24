@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  gp_t1_test — Tier 1 (Vanilla) Test Node
+  IP: 10.0.0.21
+
+  Ports: vanilla ssh(22) ftp(21) web(80) only — no GP PF ports.
+  Trace: 9999s — will never interrupt testing.
+  No proxy. No firewall. One port needed to porthack.
+
+  What to test:
+    SSHcrack 22      → red-to-green matrix, ~10s, port 22 opens
+    FTPBounce 21     → FTP animation, port 21 opens
+    WebServerWorm 80 → Web animation, port 80 opens
+    porthack         → gains admin (portsForCrack=1, just need SSH)
+-->
+<Computer id="gp_t1_test"
+          name="T1 Test Node"
+          ip="10.0.0.21"
+          security="1"
+          allowsDefaultBootModule="false"
+          type="1">
+
+  <adminPass pass="admin" />
+
+  <!-- Vanilla T1 ports — crackable by standard Hacknet tools -->
+  <ports>22, 21, 80</ports>
+
+  <!-- Only SSH needed to porthack — keeps test loop fast -->
+  <portsForCrack val="1" />
+
+  <!-- Generous trace — won't race during testing -->
+  <trace time="9999" />
+
+  <admin type="progress" resetPassword="false" isSuper="false" />
+
+  <file path="home" name="README.txt">T1 Test Node — Vanilla Cracks
+==============================
+Ports: ssh(22)  ftp(21)  web(80)
+
+Test sequence:
+  SSHcrack 22          red-to-green matrix, ~10s
+  FTPBounce 21         packets animation,   ~10s
+  WebServerWorm 80     matrix animation,    ~10s
+  porthack             gains admin (1 port needed)
+
+No proxy. No firewall. Trace will not fire.
+</file>
+
+  <positionNear target="playerComp" position="2" total="4" extraDistance="0.05" force="false" />
+  <dlink target="playerComp" />
+
+</Computer>

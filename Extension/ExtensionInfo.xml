@@ -5,7 +5,10 @@
   <Name>Gatekeeper Protocol</Name>
   <AllowSaves>true</AllowSaves>
 
-  <StartingVisibleNodes>playerComp,gp_crack_test,gp_test_node</StartingVisibleNodes>
+  <!-- Tier test nodes: gp_t1/t2/t3 for isolated per-tier testing (9999s trace, no obstacles)
+       gp_test_node = combined all-tiers node with proxy + firewall for full-run testing
+       gp_relay_alpha = V3 key store (accessible early for M1 testing convenience) -->
+  <StartingVisibleNodes>playerComp,gp_t1_test,gp_t2_test,gp_t3_test,gp_test_node,gp_relay_alpha</StartingVisibleNodes>
   <StartingMission>Missions/RunStart.xml</StartingMission>
   <StartingActions>Actions/StartingActions.xml</StartingActions>
 

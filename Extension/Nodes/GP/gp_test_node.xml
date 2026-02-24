@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
   gp_test_node — M1 Verification Node
-  Purpose: test all six GP crack executables end-to-end.
+  Purpose: test all six GP crack executables end-to-end (all tiers co-present).
+
+  Soft-gate tier model:
+    - Vanilla port 22/21/80: crackable by vanilla tools (SSHcrack / FTPBounce / Web)
+    - ssh_v2 at port 22: primary target of SSHcrack_v2; SSHcrack_v2 falls back to
+      ssh_v3 if ssh_v2 absent (timing-gated by trace timer + CPU buffs)
+    - ssh_v3 at port 22: primary target of SSHcrack_v3 (key required)
+  All three tiers share the same port number — tier is encoded in the protocol name only.
+
   Attack order:
     1. overload proxy (50s)
     2. solve GATEKEEPER firewall
     3. vanilla ports: SSHcrack / FTPBounce / WebServerWorm
-    4. V2 ports: GPV2SSH / GPV2FTP / GPV2Web (10s base, CPU mult)
-    5. V3 ports: GPV3SSH / GPV3FTP / GPV3Web (key file + 10s base, CPU mult)
-    6. porthack (portsForCrack = 3 — vanilla ports only, sufficient for M1)
+    4. V2 ports: SSHcrack_v2 / FTPBounce_v2 / WebServerWorm_v2 (10s, CPU mult)
+    5. V3 ports: SSHcrack_v3 / FTPBounce_v3 / WebServerWorm_v3 (key + 15s, CPU mult)
+    6. porthack (portsForCrack = 3)
 -->
 <Computer id="gp_test_node"
           name="GP Test Node"
@@ -22,11 +30,10 @@
   <!-- Vanilla ports (T1 crackers) -->
   <ports>22, 21, 80</ports>
 
-  <!-- V2 custom ports -->
-  <PFPorts>ssh_v2:10022, ftp_v2:10021, web_v2:10080</PFPorts>
-
-  <!-- V3 custom ports -->
-  <PFPorts>ssh_v3:20022, ftp_v3:20021, web_v3:20080</PFPorts>
+  <!-- GP tiered ports — all share the same port numbers as their vanilla counterparts.
+       Tier is encoded in the protocol name (ssh_v2 / ssh_v3), not the port number.
+       A single <PFPorts> tag with all six entries. -->
+  <PFPorts>ssh_v2:22, ftp_v2:21, web_v2:80, ssh_v3:22, ftp_v3:21, web_v3:80</PFPorts>
 
   <!-- 3 ports required to porthack (vanilla set, enough for M1 verification) -->
   <portsForCrack val="3" />

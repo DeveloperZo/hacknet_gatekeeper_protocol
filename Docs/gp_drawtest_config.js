@@ -24,13 +24,15 @@ const GP_DEFAULTS = {
 };
 
 // Mirrors each concrete cracker class: GPSSHCrackV2, GPFTPCrackV2 ... GPWebCrackV3
+// All tiers share the same port numbers as vanilla (22/21/80).
+// Tier is encoded in protocol name (ssh_v2 / ssh_v3), not the number.
 const GP_CRACKERS = {
-  ssh_v2: { tier:2, label:'SSHcrack_v2',      port:22,    solveTime:10, key:null             },
-  ftp_v2: { tier:2, label:'FTPBounce_v2',     port:21,    solveTime:10, key:null             },
-  web_v2: { tier:2, label:'WebServerWorm_v2', port:80,    solveTime:10, key:null             },
-  ssh_v3: { tier:3, label:'SSHcrack_v3',      port:20022, solveTime:15, key:'ssh_v3_key.dat' },
-  ftp_v3: { tier:3, label:'FTPBounce_v3',     port:20021, solveTime:15, key:'ftp_v3_key.dat' },
-  web_v3: { tier:3, label:'WebServerWorm_v3', port:20080, solveTime:15, key:'web_v3_key.dat' },
+  ssh_v2: { tier:2, label:'SSHcrack_v2',      port:22, solveTime:10, key:null             },
+  ftp_v2: { tier:2, label:'FTPBounce_v2',     port:21, solveTime:10, key:null             },
+  web_v2: { tier:2, label:'WebServerWorm_v2', port:80, solveTime:10, key:null             },
+  ssh_v3: { tier:3, label:'SSHcrack_v3',      port:22, solveTime:15, key:'ssh_v3_key.dat' },
+  ftp_v3: { tier:3, label:'FTPBounce_v3',     port:21, solveTime:15, key:'ftp_v3_key.dat' },
+  web_v3: { tier:3, label:'WebServerWorm_v3', port:80, solveTime:15, key:'web_v3_key.dat' },
 };
 
 // Mirrors TIER_BAR (cracked glyph color) and TIER_LABEL in GatekeeperProtocol.cs

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  gp_t2_test — Tier 2 (V2) Test Node
+  IP: 10.0.0.22
+
+  Ports:
+    - Vanilla ssh(22) — baseline; crackable by vanilla SSHcrack
+    - V2 PF ports: ssh_v2:22, ftp_v2:21, web_v2:80
+
+  Soft-gate model in action here:
+    - Vanilla SSHcrack CAN crack port 22 (the vanilla port), but on a real T2 node
+      the trace timer is calibrated to make this tight (a few seconds margin).
+    - SSHcrack_v2 opens the ssh_v2 PF port (faster, comfortable margin).
+    - Both share port number 22; tier is encoded in the protocol name only.
+
+  Trace: 9999s — will never interrupt testing.
+  No proxy. No firewall.
+-->
+<Computer id="gp_t2_test"
+          name="T2 Test Node"
+          ip="10.0.0.22"
+          security="2"
+          allowsDefaultBootModule="false"
+          type="1">
+
+  <adminPass pass="admin" />
+
+  <!-- Vanilla port 22 — lets vanilla SSHcrack test the "tight timing" path -->
+  <ports>22</ports>
+
+  <!-- V2 GP ports at the same port numbers (tier encoded in protocol name) -->
+  <PFPorts>ssh_v2:22, ftp_v2:21, web_v2:80</PFPorts>
+
+  <!-- Only SSH needed to porthack -->
+  <portsForCrack val="1" />
+
+  <trace time="9999" />
+
+  <admin type="progress" resetPassword="false" isSuper="false" />
+
+  <file path="home" name="README.txt">T2 Test Node — V2 Cracks
+==========================
+Ports:
+  vanilla:   ssh(22)
+  V2 PF:     ssh_v2(22)  ftp_v2(21)  web_v2(80)
+
+Test sequence:
+  SSHcrack 22        opens vanilla port 22 (soft-gate baseline)
+  SSHcrack_v2 22     opens ssh_v2 PF port (orange matrix, ~10s)
+  FTPBounce_v2 21    opens ftp_v2 PF port (packets anim, ~10s)
+  WebServerWorm_v2 80  opens web_v2 PF port (matrix anim, ~10s)
+  probe              verify all PF ports open
+
+No proxy. No firewall. Trace will not fire.
+</file>
+
+  <positionNear target="playerComp" position="3" total="4" extraDistance="0.05" force="false" />
+  <dlink target="playerComp" />
+
+</Computer>

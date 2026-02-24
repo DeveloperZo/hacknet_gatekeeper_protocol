@@ -46,14 +46,16 @@ namespace GatekeeperProtocol
         {
             Instance = this;
 
-            PortManager.RegisterPort("ssh_v2", "SSH V2", 10022);
-            PortManager.RegisterPort("ftp_v2", "FTP V2", 10021);
-            PortManager.RegisterPort("web_v2", "Web V2", 10080);
-            PortManager.RegisterPort("ssh_v3", "SSH V3", 20022);
-            PortManager.RegisterPort("ftp_v3", "FTP V3", 20021);
-            PortManager.RegisterPort("web_v3", "Web V3", 20080);
+            // All tiers share the same underlying port numbers (22/21/80).
+            // Tier is encoded in the protocol name, not the number.
+            PortManager.RegisterPort("ssh_v2", "SSH V2", 22);
+            PortManager.RegisterPort("ftp_v2", "FTP V2", 21);
+            PortManager.RegisterPort("web_v2", "Web V2", 80);
+            PortManager.RegisterPort("ssh_v3", "SSH V3", 22);
+            PortManager.RegisterPort("ftp_v3", "FTP V3", 21);
+            PortManager.RegisterPort("web_v3", "Web V3", 80);
 
-            Log.LogInfo("[GP] Registered 6 custom ports: ssh_v2/ftp_v2/web_v2, ssh_v3/ftp_v3/web_v3");
+            Log.LogInfo("[GP] Registered 6 custom ports: ssh_v2/ftp_v2/web_v2 (22/21/80), ssh_v3/ftp_v3/web_v3 (22/21/80)");
 
             ExecutableManager.RegisterExecutable<GPSSHCrackV2>("#SSH_V2#");
             ExecutableManager.RegisterExecutable<GPFTPCrackV2>("#FTP_V2#");
@@ -64,10 +66,11 @@ namespace GatekeeperProtocol
 
             Log.LogInfo("[GP] Registered 6 executables: SSH/FTP/WEB_V2, SSH/FTP/WEB_V3");
 
-            CommandManager.RegisterCommand("gp_debug",    GpDebugCommand,    addAutocomplete: false);
-            CommandManager.RegisterCommand("gp_drawtest", GpDrawTestCommand, addAutocomplete: false);
+            CommandManager.RegisterCommand("gp_debug",      GpDebugCommand,      addAutocomplete: false);
+            CommandManager.RegisterCommand("gp_drawtest",  GpDrawTestCommand,   addAutocomplete: false);
+            CommandManager.RegisterCommand("gp_resetports", GpResetPortsCommand, addAutocomplete: false);
 
-            Log.LogInfo("[GP] M1 plugin loaded. Commands: gp_debug, gp_drawtest");
+            Log.LogInfo("[GP] M1 plugin loaded. Commands: gp_debug, gp_drawtest, gp_resetports");
             return true;
         }
 
@@ -101,19 +104,39 @@ namespace GatekeeperProtocol
 
             if (os.connectedComp != null)
             {
+                var c = os.connectedComp;
                 os.write("");
-                os.write("Node : " + os.connectedComp.name + " (" + os.connectedComp.ip + ")");
-                os.write("Trace: " + os.connectedComp.traceTime + "s max");
-                bool hasGpPorts = false;
-                foreach (var port in os.connectedComp.GetAllPortStates())
+                os.write("Node : " + c.name + " (" + c.ip + ")");
+                os.write("Trace: " + c.traceTime + "s max");
+                os.write("");
+                os.write("Ports (all):");
+
+                // Vanilla integer ports
+                int[] vanillaPorts = new[] { 22, 21, 80 };
+                foreach (int pn in vanillaPorts)
                 {
-                    if (port.Record.Protocol.EndsWith("_v2") || port.Record.Protocol.EndsWith("_v3"))
-                    {
-                        if (!hasGpPorts) { os.write("Ports:"); hasGpPorts = true; }
-                        os.write("  " + port.Record.Protocol.PadRight(10) + " [" + (port.Cracked ? "OPEN" : "CLOSED") + "]");
-                    }
+                    bool open = c.isPortOpen(pn);
+                    os.write("  :" + pn.ToString().PadRight(5)
+                        + " [" + (open ? "OPEN  " : "CLOSED") + "]  vanilla");
                 }
-                if (!hasGpPorts) os.write("Ports: none on this node");
+
+                // GP PF ports
+                bool hasGpPorts = false;
+                foreach (var ps in c.GetAllPortStates())
+                {
+                    var proto = ps.Record.Protocol;
+                    if (!proto.EndsWith("_v2") && !proto.EndsWith("_v3")) continue;
+                    if (!hasGpPorts) { os.write(""); hasGpPorts = true; }
+                    string tier    = proto.EndsWith("_v3") ? "T3" : "T2";
+                    int    portNum = proto.StartsWith("ssh") ? 22 : proto.StartsWith("ftp") ? 21 : 80;
+                    os.write("  " + (proto + ":" + portNum).PadRight(14)
+                        + " [" + (ps.Cracked ? "OPEN  " : "CLOSED") + "]  " + tier);
+                }
+                if (!hasGpPorts) os.write("  (no GP PF ports on this node)");
+
+                os.write("");
+                os.write("gp_resetports       close all ports on this node");
+                os.write("gp_resetports <ip>  close all ports on any node");
             }
             else
             {
@@ -123,6 +146,71 @@ namespace GatekeeperProtocol
             os.write("");
             os.write("[GP] ==========================================");
             os.write("");
+        }
+
+        // ------------------------------------------------------------------
+        // gp_resetports [ip]
+        // Closes all vanilla + GP PF ports on the connected node (or <ip>).
+        // Use between crack tests to reset port state without reloading.
+        // ------------------------------------------------------------------
+        private static void GpResetPortsCommand(OS os, string[] args)
+        {
+            Computer target;
+            if (args.Length >= 2)
+            {
+                target = Programs.getComputer(os, args[1]);
+                if (target == null)
+                {
+                    os.write("[GP] resetports: no node found at '" + args[1] + "'");
+                    os.write("[GP] Usage: gp_resetports [ip]");
+                    return;
+                }
+            }
+            else if (os.connectedComp != null)
+            {
+                target = os.connectedComp;
+            }
+            else
+            {
+                os.write("[GP] resetports: not connected and no IP given.");
+                os.write("[GP] Usage: gp_resetports [ip]");
+                return;
+            }
+
+            string callerIp = os.thisComputer.ip;
+            int closed = 0;
+
+            // Vanilla ports
+            foreach (int portNum in new[] { 22, 21, 80 })
+            {
+                try { target.closePort(portNum, callerIp); closed++; }
+                catch (Exception ex)
+                {
+                    GatekeeperPlugin.Instance?.Log.LogWarning(
+                        "[GP] closePort(" + portNum + "): " + ex.Message);
+                }
+            }
+
+            // GP PF ports — only attempt ports that exist on this node
+            foreach (string proto in new[] { "ssh_v2","ftp_v2","web_v2","ssh_v3","ftp_v3","web_v3" })
+            {
+                bool exists = false;
+                foreach (var ps in target.GetAllPortStates())
+                    if (ps.Record.Protocol == proto) { exists = true; break; }
+                if (!exists) continue;
+                try { target.closePort(proto, callerIp); closed++; }
+                catch (Exception ex)
+                {
+                    GatekeeperPlugin.Instance?.Log.LogWarning(
+                        "[GP] closePort(" + proto + "): " + ex.Message);
+                }
+            }
+
+            os.write("[GP] " + target.name + " (" + target.ip + "): "
+                + closed + " port(s) reset.");
+            os.write("[GP] Run 'probe' or 'gp_debug' to verify.");
+            GatekeeperPlugin.Instance?.Log.LogInfo(
+                "[GP] gp_resetports: closed " + closed + " ports on " + target.ip);
         }
 
         private static void GpDrawTestCommand(OS os, string[] args)
@@ -298,8 +386,8 @@ namespace GatekeeperProtocol
             new Color( 80, 200, 255),   // V3 sky
         };
 
-        protected readonly string portName;
-        protected readonly int    portNumber;
+        protected string portName;   // mutable: tier-up fallback may escalate (e.g. ssh_v2 -> ssh_v3)
+        protected readonly int portNumber;
         protected readonly int    tier;
         protected readonly string keyFileName; // null = no gate
         protected float elapsed;
@@ -325,8 +413,8 @@ namespace GatekeeperProtocol
         // port           — V2: vanilla protocol ("ssh"),   V3: PF port name ("ssh_v3")
         // portNum        — V2: vanilla port number (22),   V3: PF port number (20022)
         // crackerFamily  — "ssh" | "ftp" | "web" → drives draw style selection from cfg
-        // tier < 3       → vanilla port API (int overloads)
-        // tier >= 3      → Pathfinder PF API (string overloads)
+        // tier == 1      → vanilla port API (int overloads) — reserved for future T1 custom crackers
+        // tier >= 2      → Pathfinder PF API (string overloads) — V2 and V3 both use PF protocol names
         protected GPCrackBase(Rectangle location, OS os, string[] args,
                               string port, int portNum, int tier,
                               string displayName, string crackerFamily, string keyFile = null)
@@ -337,7 +425,7 @@ namespace GatekeeperProtocol
             this.tier       = tier;
             keyFileName     = keyFile;
             _crackerFamily  = crackerFamily;
-            ramCost         = tier >= 3 ? DrawTestParams.RamCostV3 : DrawTestParams.RamCostV2;
+            ramCost         = tier >= 3 ? DrawTestParams.RamCostV3 : DrawTestParams.RamCostV2; // V2=tier2, V3=tier3
             IdentifierName  = displayName;
             _testMode       = args != null && Array.IndexOf(args, "--test")     >= 0;
             _loopMode       = args != null && Array.IndexOf(args, "--infinity") >= 0;
@@ -370,13 +458,35 @@ namespace GatekeeperProtocol
                     return;
                 }
 
-                if (tier >= 3)
+                if (tier >= 2)
                 {
-                    // PF port — existence check by name: isPortOpen(string) returns false for both
-                    // "closed" and "not present", so use GetAllPortStates() to distinguish.
+                    // PF port — existence check by protocol name.
+                    // isPortOpen(string) returns false for both "closed" and "not present",
+                    // so use GetAllPortStates() to distinguish the two.
                     bool portExists = false;
                     foreach (var ps in target.GetAllPortStates())
                         if (ps.Record.Protocol == portName) { portExists = true; break; }
+
+                    // Tier-up fallback: if this cracker's native port isn't on the node,
+                    // try the next tier (e.g. SSHcrack_v2 on a T3 node that only has ssh_v3).
+                    // The node's trace timer is the soft gate — hardware buffs are required
+                    // to beat trace before solve completes.
+                    if (!portExists && tier == 2)
+                    {
+                        string nextTier = portName.Replace("_v2", "_v3");
+                        bool nextExists = false;
+                        foreach (var ps in target.GetAllPortStates())
+                            if (ps.Record.Protocol == nextTier) { nextExists = true; break; }
+                        if (nextExists)
+                        {
+                            GatekeeperPlugin.Instance?.Log.LogInfo(
+                                "[GP] " + IdentifierName + " escalating target: " + portName + " -> " + nextTier);
+                            os.write("[GP] " + portName + " absent — attempting " + nextTier + " (buffs recommended).");
+                            portName  = nextTier;
+                            portExists = true;
+                        }
+                    }
+
                     if (!portExists)
                     {
                         os.write("[GP] ERROR: " + portName + " not found on " + targetIP + ".");
@@ -394,10 +504,7 @@ namespace GatekeeperProtocol
                 }
                 else
                 {
-                    // Vanilla port — match vanilla SSHcrack behaviour exactly:
-                    // no existence pre-check, just bail if already open.
-                    // computer.ports is not a reliable existence oracle; openPort(int) is a
-                    // silent no-op when the port isn't configured, same as vanilla.
+                    // Vanilla port (tier 1, reserved) — bail if already open.
                     if (target.isPortOpen(portNumber))
                     {
                         os.write("[GP] port " + portNumber + " already open.");
@@ -459,10 +566,10 @@ namespace GatekeeperProtocol
                     var target = Programs.getComputer(os, targetIP);
                     if (target != null)
                     {
-                        if (tier >= 3)
-                            target.openPort(portName, os.thisComputer.ip);   // Pathfinder string API
+                        if (tier >= 2)
+                            target.openPort(portName, os.thisComputer.ip);   // PF string API (V2 + V3)
                         else
-                            target.openPort(portNumber, os.thisComputer.ip); // vanilla int API
+                            target.openPort(portNumber, os.thisComputer.ip); // vanilla int API (T1)
                     }
                 }
                 catch (Exception ex)
@@ -476,7 +583,7 @@ namespace GatekeeperProtocol
                 {
                     var verifyTarget = Programs.getComputer(os, targetIP);
                     bool confirmed = verifyTarget != null &&
-                                     (tier >= 3 ? verifyTarget.isPortOpen(portName)
+                                     (tier >= 2 ? verifyTarget.isPortOpen(portName)
                                                 : verifyTarget.isPortOpen(portNumber));
                     GatekeeperPlugin.Instance?.Log.LogInfo(
                         "[GP] PORT VERIFY: " + IdentifierName + " isOpen=" + confirmed
@@ -697,39 +804,41 @@ namespace GatekeeperProtocol
     // =========================================================================
     // V2 — upgraded vanilla crackers. Target the same ports as vanilla (22/21/80),
     //       run with orange color. No key file required. Works on any node with the port.
+    // V2: protocol name "ssh_v2", same port number 22 as vanilla ssh.
+    // V3: protocol name "ssh_v3", same port number 22. Tier encodes protocol, not number.
     public class GPSSHCrackV2 : GPCrackBase
     {
         public GPSSHCrackV2(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "ssh", 22, 2, "SSHcrack_v2", "ssh") { }
+            : base(l, os, args, "ssh_v2", 22, 2, "SSHcrack_v2", "ssh") { }
     }
 
     public class GPFTPCrackV2 : GPCrackBase
     {
         public GPFTPCrackV2(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "ftp", 21, 2, "FTPBounce_v2", "ftp") { }
+            : base(l, os, args, "ftp_v2", 21, 2, "FTPBounce_v2", "ftp") { }
     }
 
     public class GPWebCrackV2 : GPCrackBase
     {
         public GPWebCrackV2(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "web", 80, 2, "WebServerWorm_v2", "web") { }
+            : base(l, os, args, "web_v2", 80, 2, "WebServerWorm_v2", "web") { }
     }
 
     public class GPSSHCrackV3 : GPCrackBase
     {
         public GPSSHCrackV3(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "ssh_v3", 20022, 3, "SSHcrack_v3", "ssh", "ssh_v3_key.dat") { }
+            : base(l, os, args, "ssh_v3", 22, 3, "SSHcrack_v3", "ssh", "ssh_v3_key.dat") { }
     }
 
     public class GPFTPCrackV3 : GPCrackBase
     {
         public GPFTPCrackV3(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "ftp_v3", 20021, 3, "FTPBounce_v3", "ftp", "ftp_v3_key.dat") { }
+            : base(l, os, args, "ftp_v3", 21, 3, "FTPBounce_v3", "ftp", "ftp_v3_key.dat") { }
     }
 
     public class GPWebCrackV3 : GPCrackBase
     {
         public GPWebCrackV3(Rectangle l, OS os, string[] args)
-            : base(l, os, args, "web_v3", 20080, 3, "WebServerWorm_v3", "web", "web_v3_key.dat") { }
+            : base(l, os, args, "web_v3", 80, 3, "WebServerWorm_v3", "web", "web_v3_key.dat") { }
     }
 }
