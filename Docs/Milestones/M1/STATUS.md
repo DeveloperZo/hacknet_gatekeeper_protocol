@@ -1,7 +1,7 @@
 # M1 Status
 
 **Last updated:** 2026-02-22
-**Status:** BUILT + DEPLOYED — awaiting in-game verification
+**Status:** COMPLETE
 
 ---
 
@@ -12,7 +12,8 @@
 | 6 PF ports registered (ssh/ftp/web × v2/v3 at 22/21/80) | DONE |
 | 6 crack executables registered + animated | DONE |
 | `--test` (one cycle) and `--infinity` (loop) modes | DONE |
-| Per-cracker draw styles: matrix / packets / waveform | DONE |
+| Per-cracker draw styles: matrix / packets / waveform (V2) | DONE |
+| V3 mini-games: Signal Sync / Packet Sort / Injection Timing | DONE |
 | `gp_debug` — hardware tiers + full port table | DONE |
 | `gp_resetports [ip]` — closes all ports, no reload needed | DONE |
 | CPU multiplier applied to solve time | DONE |
@@ -36,21 +37,14 @@ Prevents demotion on one crack — blocked on demotion being in place.
 
 ---
 
-## Remaining: In-Game Verification
+## Tech Debt
 
-Run these tests to call M1 done:
+**Mini-game input: SPACE key conflicts with terminal.**
+`Keyboard.GetState().IsKeyDown(Keys.Space)` reads raw hardware state — if the player
+types in the terminal while a V3 cracker is running, SPACE registers in both.
+Options to resolve later:
+- Intercept terminal input (patch `OS.runCommand`) and suppress SPACE while a mini-game is active
+- Replace SPACE with a different input per mini-game (e.g. a dedicated key like `F`, `G`)
+- Detect whether the terminal input field is focused and only pass SPACE to the mini-game otherwise
 
-| # | Test | Expected |
-|---|---|---|
-| 1 | Extension loads | GP in Extensions menu, no crash |
-| 2 | All 5 nodes on map | 10.0.0.10/11/21/22/23 visible |
-| 3 | `gp_debug` (not connected) | CPU T1, RAM shown, "not connected" |
-| 4 | `SSHcrack_v2 --test` | Orange matrix, ~10s, closes cleanly |
-| 5 | `SSHcrack_v3 --test` | Key check first, then cyan matrix, closes |
-| 6 | `connect 10.0.0.22` → `SSHcrack_v2 22` | ssh_v2 port opens, `gp_debug` shows OPEN |
-| 7 | `connect 10.0.0.23` → `SSHcrack_v3 22` | ssh_v3 port opens |
-| 8 | V3 without key in /home | Key error message, exits cleanly |
-| 9 | `connect 10.0.0.23` → `SSHcrack_v2 22` | Escalation logged, ssh_v3 opens |
-| 10 | `gp_resetports` after cracking | `gp_debug` shows all ports CLOSED |
-
-**All 10 pass → M1 complete → move to M2.**
+**Deferred** — functional but slightly leaky. Document in M2 or M3 as a polish task.

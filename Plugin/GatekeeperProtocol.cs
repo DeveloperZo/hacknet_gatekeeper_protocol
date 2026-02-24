@@ -28,10 +28,12 @@ using BepInEx;
 using BepInEx.Hacknet;
 using Hacknet;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using Pathfinder.Command;
 using Pathfinder.Executable;
 using Pathfinder.Port;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 
@@ -359,6 +361,449 @@ namespace GatekeeperProtocol
     }
 
     // =========================================================================
+    // GP MINI-GAMES  (V3 crackers only — SPACE-bar interaction)
+    //
+    // Transliterated from the drawtest.html MINIGAMES section.
+    // Each mini-game drives Progress 0→1; IsComplete triggers port open.
+    //
+    //   GPSignalSync      — SSH V3  — oscillating bar, SPACE on center zone (5 syncs)
+    //   GPPacketSort      — FTP V3  — falling packets, SPACE to catch target (10 catches)
+    //   GPInjectionTiming — Web V3  — scrolling HTTP, SPACE on EXPLOIT band  (10 hits)
+    // =========================================================================
+
+    internal abstract class GPMiniGame
+    {
+        public float Progress    { get; protected set; }
+        public bool  IsComplete  => Progress >= 1f;
+
+        protected static readonly Random _rng = new Random();
+        protected Rectangle _b;   // module Bounds (set in Init)
+        protected int       _hH;  // header height in px (set in Init)
+
+        public abstract void Init(Rectangle bounds, int headerH);
+        public abstract void Update(float dt, bool spaceJustPressed);
+        public abstract void Draw(Color accent);
+
+        // ── drawing helpers ──────────────────────────────────────────────
+        protected void Rect(int x, int y, int w, int h, Color c)
+            => GuiData.spriteBatch.Draw(Utils.white, new Rectangle(x, y, w, h), c);
+
+        protected void TextC(string s, int cx, int y, Color c)
+        {
+            var sz = GuiData.tinyfont.MeasureString(s);
+            GuiData.spriteBatch.DrawString(GuiData.tinyfont, s,
+                new Vector2(cx - sz.X / 2f, y), c);
+        }
+
+        protected void Text(string s, int x, int y, Color c)
+            => GuiData.spriteBatch.DrawString(GuiData.tinyfont, s, new Vector2(x, y), c);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // SSH V3 · Signal Sync
+    // Indicator oscillates on a horizontal track.
+    // Press SPACE when it aligns with the center zone. 5 syncs = done.
+    // ────────────────────────────────────────────────────────────────────
+    internal sealed class GPSignalSync : GPMiniGame
+    {
+        private float _sPhase, _speed, _accel;
+        private int   _synced;
+        private const int TOTAL_SYNCS = 5;
+        private float _cooldown, _flashTimer;
+        private bool  _flashGood, _won;
+
+        public override void Init(Rectangle bounds, int headerH)
+        {
+            _b = bounds; _hH = headerH;
+            _sPhase = 0f;
+            _speed  = 1.8f + (float)_rng.NextDouble() * 0.8f;
+            _accel  = 0f;
+            _synced = 0;
+            _cooldown = _flashTimer = 0f;
+            _won = false;
+            Progress = 0f;
+        }
+
+        private int BarW   => _b.Width - 32;
+        private int ZoneW  => Math.Max(20, BarW / 6);
+        private int Travel => BarW / 2 - ZoneW / 2;
+
+        private bool InZone() => Math.Abs((float)Math.Sin(_sPhase) * Travel) < ZoneW / 2;
+
+        public override void Update(float dt, bool space)
+        {
+            if (_won) return;
+            _accel += dt * ((float)_rng.NextDouble() - 0.5f) * 0.4f;
+            _accel  = Math.Max(-0.5f, Math.Min(0.5f, _accel));
+            _speed  = Math.Max(1.2f, Math.Min(3.5f, _speed + _accel * dt));
+            _sPhase += _speed * dt;
+            if (_flashTimer > 0) _flashTimer -= dt;
+            if (_cooldown   > 0) _cooldown   -= dt;
+
+            if (space && _cooldown <= 0)
+            {
+                _cooldown = 0.35f;
+                if (InZone()) { _synced++; _flashGood = true;  _flashTimer = 0.45f; }
+                else          {            _flashGood = false; _flashTimer = 0.30f; }
+            }
+            Progress = Math.Min(_synced / (float)TOTAL_SYNCS, 1f);
+            if (_synced >= TOTAL_SYNCS) _won = true;
+        }
+
+        public override void Draw(Color accent)
+        {
+            int barX  = _b.X + 16;
+            int barW  = BarW;
+            int barH  = 22;
+            int cH    = _b.Height - _hH;
+            int barY  = _b.Y + _hH + cH / 2 - barH / 2;
+            int zoneW = ZoneW;
+            int cx    = barX + barW / 2;
+            int travel = Travel;
+            int indX  = cx + (int)((float)Math.Sin(_sPhase) * travel);
+            bool inZone = InZone();
+            bool fl     = _flashTimer > 0;
+
+            // Track background
+            Rect(barX, barY, barW, barH, new Color(13, 13, 13));
+
+            // Target zone highlight
+            int zoneX = cx - zoneW / 2;
+            Color zoneC = fl
+                ? (_flashGood ? new Color(0, 50, 20, 80) : new Color(60, 10, 10, 60))
+                : new Color(55, 50, 0, 25);
+            Rect(zoneX, barY + 1, zoneW, barH - 2, zoneC);
+
+            // Indicator glow
+            int glowR = fl ? 12 : inZone ? 10 : 7;
+            Color glowC = fl
+                ? (_flashGood ? new Color(0, 255, 130, 80)  : new Color(255, 60, 60, 60))
+                : (inZone     ? new Color(0, 200, 80, 50)   : new Color(200, 120, 0, 40));
+            Rect(indX - glowR, barY + barH / 2 - glowR, glowR * 2, glowR * 2, glowC);
+
+            // Indicator dot
+            int dotR  = 5;
+            Color dotC = fl
+                ? (_flashGood ? new Color(0, 255, 130)   : new Color(255, 60, 60))
+                : (inZone     ? new Color(120, 255, 170) : accent);
+            Rect(indX - dotR, barY + barH / 2 - dotR, dotR * 2, dotR * 2, dotC);
+
+            // Sync pips
+            int pipW  = Math.Max(10, (barW - TOTAL_SYNCS * 3) / TOTAL_SYNCS);
+            int pipH  = 7, pipGap = 3;
+            int tpW   = TOTAL_SYNCS * (pipW + pipGap) - pipGap;
+            int pipX  = _b.X + _b.Width / 2 - tpW / 2;
+            int pipY  = barY + barH + 12;
+            for (int i = 0; i < TOTAL_SYNCS; i++)
+            {
+                Color pc = i < _synced ? new Color(0, 200, 100) : new Color(25, 25, 25);
+                Rect(pipX + i * (pipW + pipGap), pipY, pipW, pipH, pc);
+            }
+
+            // Hint text
+            string hint = fl ? (_flashGood ? "SYNC" : "MISS") : "[SPACE]";
+            Color hintC = fl
+                ? (_flashGood ? new Color(0, 255, 130) : new Color(255, 60, 60))
+                : new Color(60, 60, 60);
+            TextC(hint, _b.X + _b.Width / 2, barY - 13, hintC);
+
+            if (_won)
+            {
+                Rect(_b.X, _b.Y + _hH, _b.Width, _b.Height - _hH, new Color(0, 0, 0, 180));
+                TextC("PORT OPEN",            _b.X + _b.Width / 2, _b.Y + _b.Height / 2 - 7, accent);
+                TextC("handshake established", _b.X + _b.Width / 2, _b.Y + _b.Height / 2 + 5,
+                      new Color(0, 200, 100));
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // FTP V3 · Packet Sort
+    // Packets fall in a centre column. TARGET shown in header.
+    // Press SPACE to catch TARGET packets in the catch zone.
+    // Catching a wrong packet = penalty flash. 10 correct catches = done.
+    // ────────────────────────────────────────────────────────────────────
+    internal sealed class GPPacketSort : GPMiniGame
+    {
+        private sealed class Packet
+        {
+            public float  Y;
+            public string Label;
+            public bool   IsTarget;
+            public bool   Dead;
+        }
+
+        private static readonly string HEX16 = "0123456789ABCDEF";
+        private static char RndH() => HEX16[_rng.Next(16)];
+
+        private List<Packet> _packets;
+        private string _target;
+        private float  _spawnTimer, _spawnInterval, _speed;
+        private int    _caught;
+        private const int NEEDED = 10;
+        private float  _penaltyFlash, _hitFlash, _cooldown;
+        private bool   _won;
+
+        private const int PKT_H   = 12;
+        private const int CATCH_T = 14;
+
+        private int ColW      => Math.Min(72, _b.Width - 24);
+        private int ColX      => _b.X + _b.Width / 2 - ColW / 2;
+        private int SpawnY    => _b.Y + _hH + 14;
+        private int CatchTop  => _b.Y + _b.Height - CATCH_T;
+
+        private string RndLabel() => "[" + RndH() + RndH() + "]";
+
+        public override void Init(Rectangle bounds, int headerH)
+        {
+            _b = bounds; _hH = headerH;
+            _target       = RndLabel();
+            _packets      = new List<Packet>();
+            _spawnTimer   = 0f; _spawnInterval = 0.65f; _speed = 36f;
+            _caught       = 0;
+            _penaltyFlash = _hitFlash = _cooldown = 0f;
+            _won     = false;
+            Progress = 0f;
+        }
+
+        private Packet SpawnPacket()
+        {
+            bool   isTarget = _rng.NextDouble() < 0.38;
+            string label    = isTarget ? _target : RndLabel();
+            if (!isTarget && label == _target) label = RndLabel();
+            return new Packet { Y = SpawnY, Label = label, IsTarget = isTarget };
+        }
+
+        public override void Update(float dt, bool space)
+        {
+            if (_won) return;
+            if (_penaltyFlash > 0) _penaltyFlash -= dt;
+            if (_hitFlash     > 0) _hitFlash     -= dt;
+            if (_cooldown     > 0) _cooldown     -= dt;
+
+            _spawnTimer += dt;
+            if (_spawnTimer >= _spawnInterval)
+            {
+                _spawnTimer    = 0f;
+                _spawnInterval = Math.Max(0.38f, 0.65f - _caught * 0.015f);
+                bool tooClose  = false;
+                foreach (var p in _packets)
+                    if (!p.Dead && p.Y < SpawnY + PKT_H * 2) { tooClose = true; break; }
+                if (!tooClose) _packets.Add(SpawnPacket());
+            }
+
+            foreach (var p in _packets)
+            {
+                p.Y += _speed * dt;
+                if (p.Y > _b.Y + _b.Height) p.Dead = true;
+            }
+            _packets.RemoveAll(p => p.Dead);
+            _speed = 36f + _caught * 1.2f;
+
+            if (space && _cooldown <= 0)
+            {
+                _cooldown = 0.15f;
+                Packet best = null;
+                foreach (var p in _packets)
+                    if (!p.Dead && p.Y + PKT_H >= CatchTop && p.Y <= _b.Y + _b.Height)
+                        if (best == null || p.Y > best.Y) best = p;
+                if (best != null)
+                {
+                    best.Dead = true;
+                    if (best.IsTarget) { _caught++;   _hitFlash     = 0.25f; }
+                    else               {              _penaltyFlash = 0.30f; }
+                }
+            }
+
+            Progress = Math.Min(_caught / (float)NEEDED, 1f);
+            if (_caught >= NEEDED) _won = true;
+        }
+
+        public override void Draw(Color accent)
+        {
+            bool flHit = _hitFlash > 0, flPen = _penaltyFlash > 0;
+            int cx = ColX, cw = ColW;
+
+            // Header strip
+            Rect(_b.X, _b.Y + _hH, _b.Width, 13, new Color(12, 12, 12));
+            Text("TARGET:", _b.X + 4, _b.Y + _hH + 2, new Color(60, 60, 60));
+            Text(_target,   _b.X + 52, _b.Y + _hH + 2,
+                 flPen ? new Color(255, 60, 60) : accent);
+            string countStr = _caught + "/" + NEEDED;
+            var csSz = GuiData.tinyfont.MeasureString(countStr);
+            Text(countStr, (int)(_b.X + _b.Width - csSz.X - 4), _b.Y + _hH + 2,
+                 new Color(50, 50, 50));
+
+            // Column background
+            Rect(cx, _b.Y + _hH + 13, cw, _b.Height - _hH - 13, new Color(10, 10, 10));
+
+            // Catch zone
+            Color czC = flHit ? new Color(0, 140, 220, 46)
+                      : flPen ? new Color(255, 60,  60, 30)
+                      :         new Color(0, 140, 220, 15);
+            Rect(cx + 1, CatchTop, cw - 2, CATCH_T - 1, czC);
+
+            // Falling packets
+            foreach (var p in _packets)
+            {
+                if (p.Dead) continue;
+                int py = (int)p.Y;
+                Color bg = p.IsTarget
+                    ? new Color(accent.R, accent.G, accent.B, 28)
+                    : new Color(12, 12, 12);
+                Rect(cx + 2, py, cw - 4, PKT_H, bg);
+                bool inZone = py + PKT_H >= CatchTop && py <= _b.Y + _b.Height;
+                Color tc = p.IsTarget
+                    ? (inZone ? accent : new Color(accent.R, accent.G, accent.B, 160))
+                    : new Color(34, 34, 34);
+                var lSz = GuiData.tinyfont.MeasureString(p.Label);
+                Text(p.Label, (int)(cx + cw / 2 - lSz.X / 2), py + 1, tc);
+            }
+
+            // Flash labels
+            if (flHit) TextC("CATCH", cx + cw / 2, CatchTop - 11, new Color(0,   200, 255, 180));
+            if (flPen) TextC("WRONG", cx + cw / 2, CatchTop - 11, new Color(255,  80,  80, 180));
+
+            // SPACE hint in catch zone
+            TextC("[SPACE]", cx + cw / 2, CatchTop + 3,
+                  flHit ? accent : flPen ? new Color(255, 60, 60) : new Color(35, 35, 35));
+
+            if (_won)
+            {
+                Rect(_b.X, _b.Y + _hH, _b.Width, _b.Height - _hH, new Color(0, 0, 0, 190));
+                TextC("PORT OPEN",           _b.X + _b.Width / 2, _b.Y + _b.Height / 2 - 7, accent);
+                TextC(NEEDED + " pkts routed", _b.X + _b.Width / 2, _b.Y + _b.Height / 2 + 5,
+                      new Color(0, 200, 100));
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Web V3 · Injection Timing
+    // HTTP headers scroll upward. A >>> EXPLOIT_PAYLOAD <<< line cycles.
+    // Press SPACE when it crosses the yellow injection band.
+    // 10 successful injections = done.
+    // ────────────────────────────────────────────────────────────────────
+    internal sealed class GPInjectionTiming : GPMiniGame
+    {
+        private static readonly string[] LINES =
+        {
+            "GET / HTTP/1.1", "Host: target.node", "Connection: keep-alive",
+            "Accept: */*",    "X-GP-CRACK: v3",    "X-Port: 80",
+            ">>> EXPLOIT_PAYLOAD <<<",
+            "Cookie: sess=inject", "Pragma: no-cache", "X-Tier: 3", "Content-Length: 0",
+        };
+        private const int EXPLOIT_IDX = 6;
+        private const int LINE_H      = 11;
+        private const int BAND_H      = 14;
+
+        private float _scrollY, _speed;
+        private int   _hits, _misses;
+        private const int TOTAL_HITS = 10;
+        private float _flashTimer, _cooldown;
+        private bool  _flashGood, _won;
+
+        public override void Init(Rectangle bounds, int headerH)
+        {
+            _b = bounds; _hH = headerH;
+            _scrollY = 0f; _speed = 38f;
+            _hits = _misses = 0;
+            _flashTimer = _cooldown = 0f;
+            _won = false; Progress = 0f;
+        }
+
+        private float ExploitScreenY()
+        {
+            int total  = LINES.Length * LINE_H;
+            int startY = _b.Y + _hH + 16;
+            float scroll = _scrollY % total;
+            return startY + ((EXPLOIT_IDX * LINE_H - scroll + total * 2) % total);
+        }
+
+        private int BandY()
+        {
+            int startY   = _b.Y + _hH + 16;
+            int contentH = _b.Height - _hH - 16;
+            return startY + (int)(contentH * 0.55f);
+        }
+
+        public override void Update(float dt, bool space)
+        {
+            if (_won) return;
+            _scrollY += _speed * dt;
+            if (_flashTimer > 0) _flashTimer -= dt;
+            if (_cooldown   > 0) _cooldown   -= dt;
+            _speed = 38f + _hits * 2f;
+
+            if (space && _cooldown <= 0)
+            {
+                _cooldown = 0.3f;
+                float ey = ExploitScreenY();
+                int   by = BandY();
+                if (Math.Abs(ey - by) < BAND_H / 2 + LINE_H / 2)
+                { _hits++;   _flashGood = true;  _flashTimer = 0.35f; }
+                else
+                { _misses++; _flashGood = false; _flashTimer = 0.25f; }
+            }
+
+            Progress = Math.Min(_hits / (float)TOTAL_HITS, 1f);
+            if (_hits >= TOTAL_HITS) _won = true;
+        }
+
+        public override void Draw(Color accent)
+        {
+            bool fl    = _flashTimer > 0;
+            int  bandY = BandY();
+            int  total = LINES.Length * LINE_H;
+
+            // Injection band
+            Color bandC = fl
+                ? (_flashGood ? new Color(255, 220, 0, 100) : new Color(255, 60, 60, 40))
+                : new Color(255, 220, 0, 20);
+            Rect(_b.X, bandY - BAND_H / 2, _b.Width, BAND_H, bandC);
+
+            // Scrolling lines (3 passes for seamless wrap)
+            for (int i = 0; i < LINES.Length * 3; i++)
+            {
+                var   line   = LINES[i % LINES.Length];
+                float rawY   = _b.Y + _hH + 16 + (i * LINE_H - _scrollY % total);
+                if (rawY < _b.Y + _hH || rawY > _b.Y + _b.Height + LINE_H) continue;
+                bool  isExpl = (i % LINES.Length) == EXPLOIT_IDX;
+                bool  inBand = isExpl && Math.Abs(rawY - bandY) < BAND_H / 2 + LINE_H / 2;
+                Color lineC  = isExpl
+                    ? (inBand ? new Color(255, 255, 160)
+                              : new Color(accent.R, accent.G, accent.B, 220))
+                    : new Color(80, 80, 95, 160);
+                Text(line, _b.X + 6, (int)rawY, lineC);
+            }
+
+            // Header strip (painted over scrolling lines so they don't bleed)
+            Rect(_b.X, _b.Y + _hH, _b.Width, 15, new Color(10, 10, 10));
+            Text("HITS " + _hits + "/" + TOTAL_HITS,
+                 _b.X + 5, _b.Y + _hH + 2, new Color(60, 60, 60));
+            if (_misses > 0)
+                Text("MISS " + _misses, _b.X + 64, _b.Y + _hH + 2, new Color(90, 30, 30));
+            var sSz = GuiData.tinyfont.MeasureString("[SPACE]");
+            Text("[SPACE]", (int)(_b.X + _b.Width - sSz.X - 4), _b.Y + _hH + 2,
+                 new Color(50, 50, 50));
+
+            // Hit/miss flash
+            if (fl)
+                TextC(_flashGood ? "HIT" : "MISS", _b.X + _b.Width / 2, bandY + 2,
+                      _flashGood ? new Color(0, 255, 150, 200) : new Color(255, 80, 80, 180));
+
+            if (_won)
+            {
+                Rect(_b.X, _b.Y + _hH, _b.Width, _b.Height - _hH, new Color(0, 0, 0, 190));
+                TextC("PORT OPEN",
+                      _b.X + _b.Width / 2, _b.Y + _b.Height / 2 - 7, accent);
+                TextC(TOTAL_HITS + " payloads injected",
+                      _b.X + _b.Width / 2, _b.Y + _b.Height / 2 + 5, new Color(0, 200, 100));
+            }
+        }
+    }
+
+    // =========================================================================
     // GP CRACK BASE — unified single-inheritance crack executable
     //
     // To add a new tier: create a concrete class, pass the next tier number.
@@ -409,6 +854,10 @@ namespace GatekeeperProtocol
         private float    _drawTimer;
         private static bool _fontLogged = false; // log real font metrics once per session
 
+        // Mini-game (V3 crackers only — null for V2)
+        private GPMiniGame _miniGame;
+        private bool       _prevSpace;  // previous-frame SPACE state for edge detection
+
         // displayName    — what shows in the RAM panel (e.g. "SSHcrack_v2")
         // port           — V2: vanilla protocol ("ssh"),   V3: PF port name ("ssh_v3")
         // portNum        — V2: vanilla port number (22),   V3: PF port number (20022)
@@ -432,6 +881,14 @@ namespace GatekeeperProtocol
 
             if (os.connectedComp != null)
                 targetIP = os.connectedComp.ip;
+
+            // V3 crackers get an interactive mini-game instead of a passive timer.
+            if (keyFile != null)
+            {
+                if      (crackerFamily == "ssh") _miniGame = new GPSignalSync();
+                else if (crackerFamily == "ftp") _miniGame = new GPPacketSort();
+                else                             _miniGame = new GPInjectionTiming();
+            }
         }
 
         public override void Update(float t)
@@ -447,6 +904,7 @@ namespace GatekeeperProtocol
                 {
                     GatekeeperPlugin.Instance?.Log.LogInfo(
                         "[GP] " + IdentifierName + (_loopMode ? " --infinity loop" : " --test one-shot"));
+                    _miniGame?.Init(Bounds, DrawTestParams.HeaderH);
                     return; // skip all port/target checks
                 }
 
@@ -532,6 +990,54 @@ namespace GatekeeperProtocol
                 {
                     GatekeeperPlugin.Instance?.Log.LogWarning("[GP] hostileActionTaken: " + ex.Message);
                 }
+
+                _miniGame?.Init(Bounds, DrawTestParams.HeaderH);
+            }
+
+            // ── Mini-game update path (V3 crackers — replaces passive timer) ──────────
+            if (_miniGame != null)
+            {
+                var  kb         = Keyboard.GetState();
+                bool spaceDown  = kb.IsKeyDown(Keys.Space);
+                bool spaceJust  = spaceDown && !_prevSpace;
+                _prevSpace      = spaceDown;
+
+                _miniGame.Update(t, spaceJust);
+
+                float solveTimeForPct = BASE_SOLVE_TIME[Math.Min(tier, BASE_SOLVE_TIME.Length - 1)];
+                elapsed = _miniGame.Progress * solveTimeForPct; // keep elapsed in sync for progress bar
+
+                if (_miniGame.IsComplete)
+                {
+                    if (_loopMode) { _miniGame.Init(Bounds, DrawTestParams.HeaderH); elapsed = 0f; return; }
+                    if (_testMode) { os.write("[GP] " + IdentifierName + " test complete."); needsRemoval = true; return; }
+
+                    GatekeeperPlugin.Instance?.Log.LogInfo(
+                        "[GP] MINI-GAME DONE: " + portName + " target=" + targetIP);
+                    try
+                    {
+                        var tgt = Programs.getComputer(os, targetIP);
+                        if (tgt != null) tgt.openPort(portName, os.thisComputer.ip);
+                    }
+                    catch (Exception ex)
+                    {
+                        GatekeeperPlugin.Instance?.Log.LogWarning("[GP] openPort failed: " + ex.Message);
+                    }
+                    try
+                    {
+                        var vt = Programs.getComputer(os, targetIP);
+                        bool ok = vt != null && vt.isPortOpen(portName);
+                        GatekeeperPlugin.Instance?.Log.LogInfo(
+                            "[GP] PORT VERIFY: " + IdentifierName + " isOpen=" + ok);
+                    }
+                    catch (Exception vex)
+                    {
+                        GatekeeperPlugin.Instance?.Log.LogWarning("[GP] verify failed: " + vex.Message);
+                    }
+                    os.write("[GP] " + IdentifierName + " handshake complete.");
+                    needsRemoval = true;
+                }
+                return; // skip passive timer
             }
 
             float solveTime = BASE_SOLVE_TIME[Math.Min(tier, BASE_SOLVE_TIME.Length - 1)];
@@ -655,6 +1161,13 @@ namespace GatekeeperProtocol
             }
 
             if (contentH <= 0) return; // module too short for content
+
+            // Mini-game draw (V3 crackers — replaces matrix/packets/waveform)
+            if (_miniGame != null && initialized)
+            {
+                _miniGame.Draw(TIER_BAR[ti]);
+                return;
+            }
 
             // Measure the font's natural cell size.
             var   fontMeasure = GuiData.tinyfont.MeasureString("A");
